@@ -29,6 +29,9 @@ data Token
   | GT
   | GTE
   | EXCLAMATION
+  | BAR
+  | PERIOD
+  | UNDERSCORE
   | ARROW
   | -- primitives
     TInt Int

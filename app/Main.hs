@@ -5,17 +5,31 @@ import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Syntax.Lexer as Lexer
 import Syntax.Parser (propophlex)
 import System.Environment (getArgs)
+import Text.Pretty.Simple (pPrint)
 
 simple :: ByteString
-simple = BS.pack "let sq : Int -> Int = (n) -> n * n; let starting_value = 4; let result = sq starting_value;"
+simple =
+  BS.pack $
+    unlines $
+      [ "type a Option = Some a | None"
+      , "let map : (a -> b) -> a Option -> b Option = (o) -> 4 + 4;"
+      ]
+
+getTokens = case Lexer.scanMany simple of
+  Left e -> do
+    putStrLn "Failure: "
+    pPrint e
+  Right tokens -> do
+    putStrLn "Success!\n"
+    pPrint $ Lexer.unwrapTokens tokens
+
+getAST = case Lexer.runAlex simple propophlex of
+  Left e -> do
+    putStrLn "Failure: "
+    pPrint e
+  Right ast -> do
+    putStrLn "Success!"
+    pPrint ast
 
 main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    "impossible" : _ -> putStrLn $ case Lexer.scanMany simple of
-      Left e -> "Lexing failure: " ++ show e
-      Right tokens -> "Success! Tokens:\n" ++ show (Lexer.unwrapTokens tokens)
-    _ -> putStrLn $ case Lexer.runAlex simple propophlex of
-      Left e -> show e
-      Right ast -> "Success! AST:\n" ++ show ast
+main = getAST

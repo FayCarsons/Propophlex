@@ -75,6 +75,7 @@ executable propophlex
                       , array
                       , text
                       , bytestring
+                      , pretty-simple
 
     build-tool-depends: alex:alex, happy:happy
 

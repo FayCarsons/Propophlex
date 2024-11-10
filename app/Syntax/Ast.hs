@@ -4,17 +4,29 @@ module Syntax.Ast (
   float,
   char,
   string,
+  unitT,
+  unitLiteral,
+  erase,
   typeVar,
   typeApplication,
   typeConcrete,
+  fnType,
+  binaryOp,
+  unaryOp,
+  lambda,
   letDeclaration,
   variable,
   typedArg,
   untypedArg,
+  sumLiteralArg,
+  erasedArg,
+  sumTypeDeclaration,
+  recordTypeDeclaration,
+  fieldAccess,
   OpBinary (..),
   OpUnary (..),
   TypeRef (..),
-  Signature (..),
+  Identifier (..),
 ) where
 
 import Data.ByteString.Lazy.Char8 (ByteString)
@@ -24,7 +36,11 @@ data Literal
   | LFloat Double
   | LChar Char
   | LString ByteString
+  | LUnit
   deriving (Eq, Show)
+
+unitLiteral :: Ast
+unitLiteral = Literal LUnit
 
 data Identifier = Identifier ByteString
   deriving (Eq, Show)
@@ -38,7 +54,9 @@ data Const = Const ByteString
 data TypeRef
   = ConcreteT Const
   | ApplicationT Const [Var]
+  | FnT [TypeRef]
   | VarT Var
+  | Unit
   deriving (Eq, Show)
 
 typeVar :: ByteString -> TypeRef
@@ -50,10 +68,8 @@ typeApplication t vs = ApplicationT (Const t) (map Var vs)
 typeConcrete :: ByteString -> TypeRef
 typeConcrete t = ConcreteT $ Const t
 
-data Signature
-  = LiteralT TypeRef
-  | FnT [TypeRef]
-  deriving (Eq, Show)
+fnType :: [TypeRef] -> TypeRef
+fnType = FnT
 
 data OpBinary
   = Add
@@ -62,12 +78,20 @@ data OpBinary
   | Div
   deriving (Eq, Show)
 
+binaryOp :: OpBinary -> Ast -> Ast -> Ast
+binaryOp = BinaryOp
+
 data OpUnary = Neg
   deriving (Eq, Show)
+
+unaryOp :: OpUnary -> Ast -> Ast
+unaryOp = UnaryOp
 
 data Arg
   = Arg Var
   | Typed Var TypeRef
+  | SumLiteral Const [Identifier]
+  | Erased
   deriving (Eq, Show)
 
 untypedArg :: ByteString -> Arg
@@ -76,20 +100,58 @@ untypedArg s = Arg $ Var s
 typedArg :: ByteString -> TypeRef -> Arg
 typedArg s t = Typed (Var s) t
 
-data Ast
-  = Literal Literal
-  | Variable Var
-  | BinaryOp OpBinary Ast Ast
-  | UnaryOp OpUnary Ast
-  | Let Identifier (Maybe Signature) [Ast]
-  | Lambda [Arg] [Ast]
-  | Constant Const Signature Ast
+sumLiteralArg :: ByteString -> [ByteString] -> Arg
+sumLiteralArg variant fields = SumLiteral (Const variant) (map Identifier fields)
+
+erasedArg :: Arg
+erasedArg = Erased
+
+data TypeDeclaration
+  = RecordTypeDeclaration Const (Maybe [TypeRef]) [(Const, TypeRef)]
+  | SumTypeDeclaration Const (Maybe [TypeRef]) [(Const, TypeRef)]
   deriving (Eq, Show)
 
-variable :: ByteString -> Ast
-variable name = Variable $ Var name
+typeVariables :: [ByteString] -> [TypeRef]
+typeVariables = map (VarT . Var)
 
-letDeclaration :: ByteString -> (Maybe Signature) -> [Ast] -> Ast
+recordTypeDeclaration :: ByteString -> (Maybe [ByteString]) -> [(ByteString, TypeRef)] -> Ast
+recordTypeDeclaration typeName parameters fields =
+  DeclarationT $ RecordTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (\(name, t) -> (Const name, t)) fields)
+
+fieldAccess :: ByteString -> ByteString -> Ast
+fieldAccess v field = FieldAccess (Identifier v) (Identifier field)
+
+sumTypeDeclaration :: ByteString -> (Maybe [ByteString]) -> [(ByteString, TypeRef)] -> Ast
+sumTypeDeclaration typeName parameters fields =
+  DeclarationT $ SumTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (\(name, t) -> (Const name, t)) fields)
+
+data Ast
+  = Literal Literal
+  | Erase [Ast]
+  | Variable Identifier
+  | FieldAccess Identifier Identifier
+  | DeclarationT TypeDeclaration
+  | BinaryOp OpBinary Ast Ast
+  | UnaryOp OpUnary Ast
+  | Let Identifier (Maybe TypeRef) [Ast]
+  | Lambda [Arg] [Ast]
+  | Constant Const TypeRef Ast
+  | ApplicationF Ast Ast
+  deriving (Eq, Show)
+
+lambda :: [Arg] -> [Ast] -> Ast
+lambda = Lambda
+
+erase :: [Ast] -> Ast
+erase = Erase
+
+unitT :: TypeRef
+unitT = Unit
+
+variable :: ByteString -> Ast
+variable name = Variable $ Identifier name
+
+letDeclaration :: ByteString -> (Maybe TypeRef) -> [Ast] -> Ast
 letDeclaration name sig expr = Let (Identifier name) sig expr
 
 int :: Int -> Ast
