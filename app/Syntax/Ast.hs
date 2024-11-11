@@ -6,6 +6,7 @@ module Syntax.Ast (
   string,
   unitT,
   unitLiteral,
+  recordLiteral,
   erase,
   typeVar,
   typeApplication,
@@ -37,10 +38,17 @@ data Literal
   | LChar Char
   | LString ByteString
   | LUnit
+  | LRecord [(Identifier, Ast)]
   deriving (Eq, Show)
 
 unitLiteral :: Ast
 unitLiteral = Literal LUnit
+
+recordLiteral :: [(ByteString, Ast)] -> Ast
+recordLiteral =
+  Literal
+    . LRecord
+    . map (\(fieldName, value) -> (Identifier fieldName, value))
 
 data Identifier = Identifier ByteString
   deriving (Eq, Show)

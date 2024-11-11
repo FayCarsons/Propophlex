@@ -12,7 +12,7 @@ simple =
   BS.pack $
     unlines $
       [ "type a Option = Some a | None"
-      , "let map : (a -> b) -> a Option -> b Option = (o) -> 4 + 4;"
+      , "let implicit = { foo = (x) -> f x, bar = (f, g) -> comp f g };"
       ]
 
 getTokens = case Lexer.scanMany simple of

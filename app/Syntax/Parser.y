@@ -131,6 +131,7 @@ Literal : int { Ast.int $1 }
         | char { Ast.char $1 }
         | string { Ast.string $1 }
         | '(' ')' { Ast.unitLiteral }
+        | RecordLiteral { $1 }
 
 SumField : static TypeRef { ($1, $2) }
          | static { ($1, Ast.unitT) }
@@ -141,6 +142,11 @@ SumFields : SumField { [$1] }
 RecordField : identifier ':' TypeRef { ($1, $3) }
 RecordFields : RecordField { [$1] }
              | RecordFields ',' RecordField { $3 : $1 }
+
+RecordLiteralField : identifier '=' Expression { ($1, $3) } 
+RecordLiteralFields : RecordLiteralField { [$1] }
+                    | RecordLiteralFields ',' RecordLiteralField { $3 : $1 }
+RecordLiteral : '{' RecordLiteralFields '}' { Ast.recordLiteral $ reverse $2 }
 
 RecordFieldPun : identifier { [ Ast.untypedArg $1] }
                | '_' { [ Ast.erasedArg ] }
