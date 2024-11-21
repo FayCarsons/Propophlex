@@ -38,27 +38,6 @@ module Syntax.Ast (
 import Data.Bifunctor (Bifunctor (first))
 import Data.ByteString.Lazy.Char8 (ByteString)
 
-data Literal
-  = LInt Int
-  | LFloat Double
-  | LChar Char
-  | LString ByteString
-  | LUnit
-  | LRecord [(Identifier, Ast)]
-  | LSum Const [Ast]
-  deriving (Eq, Show)
-
-unitLiteral :: Literal
-unitLiteral = LUnit
-
-recordLiteral :: [(ByteString, Ast)] -> Literal
-recordLiteral =
-  LRecord
-    . map (first Identifier)
-
-sumLiteral :: ByteString -> [Ast] -> Literal
-sumLiteral variant = LSum (Const variant)
-
 newtype Identifier = Identifier ByteString
   deriving (Eq, Show)
 
@@ -67,6 +46,42 @@ newtype Var = Var ByteString
 
 newtype Const = Const ByteString
   deriving (Eq, Show)
+
+data Literal annotation
+  = LInt Int
+  | LFloat Double
+  | LChar Char
+  | LString ByteString
+  | LUnit
+  | LRecord [(Identifier, Ast annotation)]
+  | LSum Const [Ast annotation]
+  deriving (Eq, Show)
+
+unitLiteral :: Literal annotation
+unitLiteral = LUnit
+
+recordLiteral :: [(ByteString, Ast annotation)] -> Literal annotation
+recordLiteral =
+  LRecord
+    . map (first Identifier)
+
+sumLiteral :: ByteString -> [Ast annotation] -> Literal annotation
+sumLiteral variant = LSum (Const variant)
+
+int :: Int -> Literal annotation
+int = LInt
+
+float :: Double -> Literal annotation
+float = LFloat
+
+char :: Char -> Literal annotation
+char = LChar
+
+string :: ByteString -> Literal annotation
+string = LString
+
+literal :: Literal annotation -> Ast annotation
+literal = Literal
 
 data TypeRef
   = ConcreteT Const
@@ -95,14 +110,14 @@ data OpBinary
   | Div
   deriving (Eq, Show)
 
-binaryOp :: OpBinary -> Ast -> Ast -> Ast
-binaryOp = BinaryOp
+binaryOp :: OpBinary -> Ast () -> Ast () -> Ast ()
+binaryOp = BinaryOp ()
 
 data OpUnary = Neg
   deriving (Eq, Show)
 
-unaryOp :: OpUnary -> Ast -> Ast
-unaryOp = UnaryOp
+unaryOp :: OpUnary -> Ast () -> Ast ()
+unaryOp = UnaryOp ()
 
 data Arg
   = Arg Var
@@ -131,68 +146,53 @@ data TypeDeclaration
 typeVariables :: [ByteString] -> [TypeRef]
 typeVariables = map (VarT . Var)
 
-recordTypeDeclaration :: ByteString -> Maybe [ByteString] -> [(ByteString, TypeRef)] -> Ast
+recordTypeDeclaration :: ByteString -> Maybe [ByteString] -> [(ByteString, TypeRef)] -> Ast ()
 recordTypeDeclaration typeName parameters fields =
-  DeclarationT $ RecordTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (first Const) fields)
+  DeclarationT () $ RecordTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (first Const) fields)
 
-fieldAccess :: ByteString -> ByteString -> Ast
-fieldAccess v field = FieldAccess (Identifier v) (Identifier field)
+fieldAccess :: ByteString -> ByteString -> Ast ()
+fieldAccess v field = FieldAccess () (Identifier v) (Identifier field)
 
-sumTypeDeclaration :: ByteString -> Maybe [ByteString] -> [(ByteString, TypeRef)] -> Ast
+sumTypeDeclaration :: ByteString -> Maybe [ByteString] -> [(ByteString, TypeRef)] -> Ast ()
 sumTypeDeclaration typeName parameters fields =
-  DeclarationT $ SumTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (first Const) fields)
+  DeclarationT () $ SumTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (first Const) fields)
 
-data Ast
-  = Literal Literal
-  | Erase [Ast]
-  | Variable Identifier
-  | FieldAccess Identifier Identifier
-  | DeclarationT TypeDeclaration
-  | BinaryOp OpBinary Ast Ast
-  | UnaryOp OpUnary Ast
-  | Let Identifier (Maybe TypeRef) [Ast]
-  | Lambda [Arg] [Ast]
-  | Constant Const TypeRef Ast
-  | ApplicationF Ast Ast
-  | If Ast Ast Ast
-  | Match Ast [(Literal, Ast)]
+data Ast annotation
+  = Literal (Literal annotation)
+  | Erase annotation [Ast annotation]
+  | Variable annotation Identifier
+  | FieldAccess annotation Identifier Identifier
+  | DeclarationT annotation TypeDeclaration
+  | BinaryOp annotation OpBinary (Ast annotation) (Ast annotation)
+  | UnaryOp annotation OpUnary (Ast annotation)
+  | Let annotation Identifier (Maybe TypeRef) [Ast annotation]
+  | Lambda annotation [Arg] [Ast annotation]
+  | Constant annotation Const TypeRef (Ast annotation)
+  | ApplicationF annotation (Ast annotation) (Ast annotation)
+  | If annotation (Ast annotation) (Ast annotation) (Ast annotation)
+  | Match annotation (Ast annotation) [(Literal annotation, Ast annotation)]
   deriving (Eq, Show)
 
-ifThen :: Ast -> Ast -> Ast
-ifThen p t = If p t (Literal LUnit)
+ifThen :: Ast () -> Ast () -> Ast ()
+ifThen p t = If () p t (Literal LUnit)
 
-ifThenElse :: Ast -> Ast -> Ast -> Ast
-ifThenElse = If
+ifThenElse :: Ast () -> Ast () -> Ast () -> Ast ()
+ifThenElse = If ()
 
-match :: Ast -> [(Literal, Ast)] -> Ast
-match = Match
+match :: Ast () -> [(Literal (), Ast ())] -> Ast ()
+match = Match ()
 
-lambda :: [Arg] -> [Ast] -> Ast
-lambda = Lambda
+lambda :: [Arg] -> [Ast ()] -> Ast ()
+lambda = Lambda ()
 
-erase :: [Ast] -> Ast
-erase = Erase
+erase :: [Ast ()] -> Ast ()
+erase = Erase ()
 
 unitT :: TypeRef
 unitT = Unit
 
-variable :: ByteString -> Ast
-variable name = Variable $ Identifier name
+variable :: ByteString -> Ast ()
+variable name = Variable () $ Identifier name
 
-letDeclaration :: ByteString -> Maybe TypeRef -> [Ast] -> Ast
-letDeclaration name = Let (Identifier name)
-
-int :: Int -> Literal
-int = LInt
-
-float :: Double -> Literal
-float = LFloat
-
-char :: Char -> Literal
-char = LChar
-
-string :: ByteString -> Literal
-string = LString
-
-literal :: Literal -> Ast
-literal = Literal
+letDeclaration :: ByteString -> Maybe TypeRef -> [Ast ()] -> Ast ()
+letDeclaration name = Let () (Identifier name)

@@ -80,8 +80,8 @@ Expression : TypeDeclaration { $1 }
           | Literal { Ast.literal $1 }
           | Arithmetic { $1 }
           | SimpleExpr { $1 }
-          | SimpleExpr Expression %prec APPLICATION { Ast.ApplicationF $1 $2 }
-          | Expression '@' Expression %prec APPLICATION { Ast.ApplicationF $1 $3 }
+          | SimpleExpr Expression %prec APPLICATION { Ast.ApplicationF () $1 $2 }
+          | Expression '@' Expression %prec APPLICATION { Ast.ApplicationF () $1 $3 }
           | LetBinding { $1 }
           | Lambda { $1 }
           | If { $1 }
