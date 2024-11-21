@@ -77,7 +77,7 @@ Expressions : Expression { [$1] }
            | Expressions Expression { $2 : $1 }
 
 Expression : TypeDeclaration { $1 }
-          | Literal { $1 }
+          | Literal { Ast.literal $1 }
           | Arithmetic { $1 }
           | SimpleExpr { $1 }
           | SimpleExpr Expression %prec APPLICATION { Ast.ApplicationF $1 $2 }
@@ -85,9 +85,16 @@ Expression : TypeDeclaration { $1 }
           | LetBinding { $1 }
           | Lambda { $1 }
           | If { $1 }
+          | Match { $1 }
 
 If : if Expression then Expression { Ast.ifThen $2 $4 }
    | if Expression then Expression else Expression { Ast.ifThenElse $2 $4 $6 }
+
+MatchArm : '|' Literal arrow Expression { ($2, $4) }
+MatchArms : MatchArm { [$1] }
+          | MatchArms MatchArm { $2 : $1 }
+
+Match : match Expression MatchArms { Ast.match $2 $ reverse $3 }
 
 SimpleExpr : identifier { Ast.variable $1 }
            | FieldAccess { $1 }
@@ -136,12 +143,16 @@ Literal : int { Ast.int $1 }
         | string { Ast.string $1 }
         | '(' ')' { Ast.unitLiteral }
         | RecordLiteral { $1 }
-
+        | SumLiteral { $1 }
+ 
 SumField : static TypeRef { ($1, $2) }
          | static { ($1, Ast.unitT) }
 
 SumFields : SumField { [$1] }
           | SumFields '|' SumField { $3 : $1 }
+
+SumLiteral : static Expressions { Ast.sumLiteral $1 $ reverse $2 }
+           | static { Ast.sumLiteral $1 [] }
 
 RecordField : identifier ':' TypeRef { ($1, $3) }
 RecordFields : RecordField { [$1] }

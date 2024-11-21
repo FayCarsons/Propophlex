@@ -11,7 +11,9 @@ simple =
   BS.pack $
     unlines
       [ "type a Option = Some a | None"
-      , "if a then 1 + 1 else 2 * 2"
+      , "let c : Int32 = match b"
+      , "| Some n -> n"
+      , "| None -> 0;"
       ]
 
 getTokens :: IO ()

@@ -7,6 +7,8 @@ module Syntax.Ast (
   unitT,
   unitLiteral,
   recordLiteral,
+  sumLiteral,
+  literal,
   erase,
   typeVar,
   typeApplication,
@@ -18,6 +20,7 @@ module Syntax.Ast (
   letDeclaration,
   ifThen,
   ifThenElse,
+  match,
   variable,
   typedArg,
   untypedArg,
@@ -42,16 +45,19 @@ data Literal
   | LString ByteString
   | LUnit
   | LRecord [(Identifier, Ast)]
+  | LSum Const [Ast]
   deriving (Eq, Show)
 
-unitLiteral :: Ast
-unitLiteral = Literal LUnit
+unitLiteral :: Literal
+unitLiteral = LUnit
 
-recordLiteral :: [(ByteString, Ast)] -> Ast
+recordLiteral :: [(ByteString, Ast)] -> Literal
 recordLiteral =
-  Literal
-    . LRecord
+  LRecord
     . map (first Identifier)
+
+sumLiteral :: ByteString -> [Ast] -> Literal
+sumLiteral variant = LSum (Const variant)
 
 newtype Identifier = Identifier ByteString
   deriving (Eq, Show)
@@ -176,14 +182,17 @@ variable name = Variable $ Identifier name
 letDeclaration :: ByteString -> Maybe TypeRef -> [Ast] -> Ast
 letDeclaration name = Let (Identifier name)
 
-int :: Int -> Ast
-int n = Literal $ LInt n
+int :: Int -> Literal
+int = LInt
 
-float :: Double -> Ast
-float n = Literal $ LFloat n
+float :: Double -> Literal
+float = LFloat
 
-char :: Char -> Ast
-char c = Literal $ LChar c
+char :: Char -> Literal
+char = LChar
 
-string :: ByteString -> Ast
-string s = Literal $ LString s
+string :: ByteString -> Literal
+string = LString
+
+literal :: Literal -> Ast
+literal = Literal
