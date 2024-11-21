@@ -16,6 +16,8 @@ module Syntax.Ast (
   unaryOp,
   lambda,
   letDeclaration,
+  ifThen,
+  ifThenElse,
   variable,
   typedArg,
   untypedArg,
@@ -30,6 +32,7 @@ module Syntax.Ast (
   Identifier (..),
 ) where
 
+import Data.Bifunctor (Bifunctor (first))
 import Data.ByteString.Lazy.Char8 (ByteString)
 
 data Literal
@@ -48,15 +51,15 @@ recordLiteral :: [(ByteString, Ast)] -> Ast
 recordLiteral =
   Literal
     . LRecord
-    . map (\(fieldName, value) -> (Identifier fieldName, value))
+    . map (first Identifier)
 
-data Identifier = Identifier ByteString
+newtype Identifier = Identifier ByteString
   deriving (Eq, Show)
 
-data Var = Var ByteString
+newtype Var = Var ByteString
   deriving (Eq, Show)
 
-data Const = Const ByteString
+newtype Const = Const ByteString
   deriving (Eq, Show)
 
 data TypeRef
@@ -106,7 +109,7 @@ untypedArg :: ByteString -> Arg
 untypedArg s = Arg $ Var s
 
 typedArg :: ByteString -> TypeRef -> Arg
-typedArg s t = Typed (Var s) t
+typedArg s = Typed (Var s)
 
 sumLiteralArg :: ByteString -> [ByteString] -> Arg
 sumLiteralArg variant fields = SumLiteral (Const variant) (map Identifier fields)
@@ -122,16 +125,16 @@ data TypeDeclaration
 typeVariables :: [ByteString] -> [TypeRef]
 typeVariables = map (VarT . Var)
 
-recordTypeDeclaration :: ByteString -> (Maybe [ByteString]) -> [(ByteString, TypeRef)] -> Ast
+recordTypeDeclaration :: ByteString -> Maybe [ByteString] -> [(ByteString, TypeRef)] -> Ast
 recordTypeDeclaration typeName parameters fields =
-  DeclarationT $ RecordTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (\(name, t) -> (Const name, t)) fields)
+  DeclarationT $ RecordTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (first Const) fields)
 
 fieldAccess :: ByteString -> ByteString -> Ast
 fieldAccess v field = FieldAccess (Identifier v) (Identifier field)
 
-sumTypeDeclaration :: ByteString -> (Maybe [ByteString]) -> [(ByteString, TypeRef)] -> Ast
+sumTypeDeclaration :: ByteString -> Maybe [ByteString] -> [(ByteString, TypeRef)] -> Ast
 sumTypeDeclaration typeName parameters fields =
-  DeclarationT $ SumTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (\(name, t) -> (Const name, t)) fields)
+  DeclarationT $ SumTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (first Const) fields)
 
 data Ast
   = Literal Literal
@@ -145,7 +148,18 @@ data Ast
   | Lambda [Arg] [Ast]
   | Constant Const TypeRef Ast
   | ApplicationF Ast Ast
+  | If Ast Ast Ast
+  | Match Ast [(Literal, Ast)]
   deriving (Eq, Show)
+
+ifThen :: Ast -> Ast -> Ast
+ifThen p t = If p t (Literal LUnit)
+
+ifThenElse :: Ast -> Ast -> Ast -> Ast
+ifThenElse = If
+
+match :: Ast -> [(Literal, Ast)] -> Ast
+match = Match
 
 lambda :: [Arg] -> [Ast] -> Ast
 lambda = Lambda
@@ -159,8 +173,8 @@ unitT = Unit
 variable :: ByteString -> Ast
 variable name = Variable $ Identifier name
 
-letDeclaration :: ByteString -> (Maybe TypeRef) -> [Ast] -> Ast
-letDeclaration name sig expr = Let (Identifier name) sig expr
+letDeclaration :: ByteString -> Maybe TypeRef -> [Ast] -> Ast
+letDeclaration name = Let (Identifier name)
 
 int :: Int -> Ast
 int n = Literal $ LInt n

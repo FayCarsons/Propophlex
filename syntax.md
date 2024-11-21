@@ -1,11 +1,11 @@
 ## Code examples and brainstorming space
 ```haskell
 -- Top level declarations
-const width : UInt32 = 512
+const Width : UInt32 = 512
 
 -- Console here would be an algebraic effect
-let println : String -> {Console} () 
-  = (s : String) -> unsafe_print_string s
+let println : String -> {Console} () = 
+  fn s -> unsafe_print_string s
 
 let print_with_tag : tag:String -> (ToString a) -> {Console} () 
   = (~tag: String, thing: ToString) -> println @ renamed_arg ++ ": " ++ thing;

@@ -22,14 +22,9 @@ name:               propophlex
 --                  | | | +--- code changes with no API change
 version:            0.1.0.0
 
--- A short (one-line) description of the package.
 synopsis:
     An ML for heapless environments and hard real-time applications
 
--- A longer description of the package.
--- description:
-
--- URL for the project homepage or repository.
 homepage:           github.com/FayCarson/propophlex
 license:            MIT
 license-file:       LICENSE
@@ -53,7 +48,7 @@ executable propophlex
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules: Syntax.Ast, Syntax.Token, Syntax.Lexer, Syntax.Parser, Typing.Holes
+    other-modules: Syntax.Ast, Syntax.Token, Syntax.Lexer, Syntax.Parser
 
     other-extensions: FlexibleContexts
 
@@ -63,11 +58,13 @@ executable propophlex
                       , text
                       , bytestring
                       , pretty-simple
+                      , llvm-hs-pure >= 9
 
     build-tool-depends: alex:alex, happy:happy
 
     -- Directories containing source files.
     hs-source-dirs:   app
 
+    extra-lib-dirs: /usr/local/opt/llvm/lib 
     -- Base language which the package is written in.
     default-language: Haskell2010

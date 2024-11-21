@@ -84,6 +84,10 @@ Expression : TypeDeclaration { $1 }
           | Expression '@' Expression %prec APPLICATION { Ast.ApplicationF $1 $3 }
           | LetBinding { $1 }
           | Lambda { $1 }
+          | If { $1 }
+
+If : if Expression then Expression { Ast.ifThen $2 $4 }
+   | if Expression then Expression else Expression { Ast.ifThenElse $2 $4 $6 }
 
 SimpleExpr : identifier { Ast.variable $1 }
            | FieldAccess { $1 }
