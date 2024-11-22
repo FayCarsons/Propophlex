@@ -116,13 +116,13 @@ Arithmetic : Expression '+' Expression { Ast.binaryOp Ast.Add $1 $3 }
 
 TypeArg : identifier { Ast.typeVar $1 }
         | static { Ast.typeConcrete $1 }
-        | '(' TypeArgs ')' { Ast.typeApplication $2 }
+        | '(' TypeArgs ')' { Ast.typeApplication (reverse $2) }
 
 TypeArgs : TypeArg TypeArg { [$1, $2] }  -- Must have at least two
          | TypeArgs TypeArg { $2 : $1 }
 
 TypeRef : TypeArg { $1 }
-        | TypeArgs { Ast.typeApplication $1 }
+        | TypeArgs { Ast.typeApplication (reverse $1) }
         | '(' ')' { Ast.unitT }
         | '(' TypeRef arrow TypeRef ')' { Ast.fnType [$2, $4] }  -- Directly construct function type
         | '(' Arrows ')' { Ast.fnType (reverse $2) }  -- Handle multi-arg functions
@@ -180,8 +180,8 @@ RecordDestructure : '{' RecordFieldPun '}' { $2 }
 
 FieldAccess : identifier '.' identifier { Ast.fieldAccess $1 $3 }
 
-TypeDeclaration : type static '=' SumFields { Ast.sumTypeDeclaration $2 Nothing (reverse $4) }
-                | type TypeArgs static '=' SumFields { Ast.sumTypeDeclaration $3 (Just $ reverse $2) (reverse $5) }
+TypeDeclaration : type static '=' SumFields { Ast.sumTypeDeclaration [Ast.typeConcrete $2] (reverse $4) }
+                | type TypeArgs '=' SumFields { Ast.sumTypeDeclaration $2 (reverse $4) }
                 | type static '=' '{' RecordFields '}' { Ast.recordTypeDeclaration $2 Nothing (reverse $5) }
                 | type TypeArgs static '=' '{' RecordFields '}' { Ast.recordTypeDeclaration $3 (Just $ reverse $2) (reverse $6) }
 

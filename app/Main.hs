@@ -6,15 +6,8 @@ import qualified Syntax.Lexer as Lexer
 import Syntax.Parser (propophlex)
 import Text.Pretty.Simple (pPrint)
 
-simple :: ByteString
-simple =
-  BS.pack $
-    unlines
-      [ "let f : (Int32 Maybe) String Result -> Int32 = f;"
-      ]
-
-getTokens :: IO ()
-getTokens = case Lexer.scanMany simple of
+getTokens :: ByteString -> IO ()
+getTokens input = case Lexer.scanMany input of
   Left e -> do
     putStrLn "Failure: "
     pPrint e
@@ -22,8 +15,8 @@ getTokens = case Lexer.scanMany simple of
     putStrLn "Success!\n"
     pPrint $ Lexer.unwrapTokens tokens
 
-getAST :: IO ()
-getAST = case Lexer.runAlex simple propophlex of
+getAST :: ByteString -> IO ()
+getAST input = case Lexer.runAlex input propophlex of
   Left e -> do
     putStrLn "Failure: "
     pPrint e
@@ -32,4 +25,4 @@ getAST = case Lexer.runAlex simple propophlex of
     pPrint ast
 
 main :: IO ()
-main = getAST
+main = BS.readFile "app/main.phlex" >>= getAST

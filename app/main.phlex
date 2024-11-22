@@ -1,0 +1,17 @@
+type Option a = Some a | None
+
+let is_some : a Option -> bool = fn 
+| Some a -> true 
+| None -> false
+;
+
+let bind : a Option -> (a -> b Option) -> b Option = 
+  fn 
+  | Some x -> f x
+  | None -> None
+;
+
+let map : (a -> b) -> a Option -> b Option = 
+  fn x -> 
+    bind x (fn x -> Some (f x))
+;

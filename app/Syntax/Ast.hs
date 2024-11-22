@@ -97,10 +97,12 @@ data TypeRef
 typeVar :: ByteString -> TypeRef
 typeVar s = VarT $ Var s
 
+typeSigError unexpected = error $ "Ast.typeApplication: first type must be a concrete type. Got: " ++ show unexpected
+
 typeApplication :: [TypeRef] -> TypeRef
 typeApplication types = case types of
   ConcreteT (Const constructor) : args -> ApplicationT (Const constructor) args
-  unexpected -> error $ "Ast.typeApplication: first type must be a concrete type. Got: " ++ show unexpected
+  unexpected -> typeSigError unexpected
 
 typeConcrete :: ByteString -> TypeRef
 typeConcrete t = ConcreteT $ Const t
@@ -155,9 +157,11 @@ recordTypeDeclaration typeName parameters fields =
 fieldAccess :: ByteString -> ByteString -> Ast ()
 fieldAccess v field = FieldAccess () (Identifier v) (Identifier field)
 
-sumTypeDeclaration :: ByteString -> Maybe [TypeRef] -> [(ByteString, TypeRef)] -> Ast ()
-sumTypeDeclaration typeName parameters fields =
-  DeclarationT () $ SumTypeDeclaration (Const typeName) parameters (map (first Const) fields)
+sumTypeDeclaration :: [TypeRef] -> [(ByteString, TypeRef)] -> Ast ()
+sumTypeDeclaration types variants = case types of
+  [ConcreteT cons] -> DeclarationT () $ SumTypeDeclaration cons Nothing (map (first Const) variants)
+  ConcreteT cons : typeParams -> DeclarationT () $ SumTypeDeclaration cons (Just $ reverse typeParams) (map (first Const) variants)
+  unexpected -> typeSigError unexpected
 
 data FunctionApplication annotation
   = FunctionApplication (Ast annotation) [Ast annotation]
