@@ -150,9 +150,11 @@ data TypeDeclaration
   | SumTypeDeclaration Const (Maybe [TypeRef]) [(Const, TypeRef)]
   deriving (Eq, Show)
 
-recordTypeDeclaration :: ByteString -> Maybe [TypeRef] -> [(ByteString, TypeRef)] -> Ast ()
-recordTypeDeclaration typeName parameters fields =
-  DeclarationT () $ RecordTypeDeclaration (Const typeName) parameters (map (first Var) fields)
+recordTypeDeclaration :: [TypeRef] -> [(ByteString, TypeRef)] -> Ast ()
+recordTypeDeclaration types fields = DeclarationT () $ case types of
+  [ConcreteT cons] -> RecordTypeDeclaration cons Nothing (map (first Var) fields)
+  ConcreteT cons : typeParams -> RecordTypeDeclaration cons (Just $ reverse typeParams) (map (first Var) fields)
+  unexpected -> typeSigError unexpected
 
 fieldAccess :: ByteString -> ByteString -> Ast ()
 fieldAccess v field = FieldAccess () (Identifier v) (Identifier field)

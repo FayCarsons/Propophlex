@@ -1,8 +1,10 @@
 type Option a = Some a | None
+type Located a = { value : a, location : Loc }
+
 
 let is_some : a Option -> bool = fn 
-| Some a -> true 
-| None -> false
+  | Some a -> true 
+  | None -> false
 ;
 
 let bind : a Option -> (a -> b Option) -> b Option = 

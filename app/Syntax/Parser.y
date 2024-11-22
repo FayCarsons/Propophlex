@@ -182,8 +182,8 @@ FieldAccess : identifier '.' identifier { Ast.fieldAccess $1 $3 }
 
 TypeDeclaration : type static '=' SumFields { Ast.sumTypeDeclaration [Ast.typeConcrete $2] (reverse $4) }
                 | type TypeArgs '=' SumFields { Ast.sumTypeDeclaration $2 (reverse $4) }
-                | type static '=' '{' RecordFields '}' { Ast.recordTypeDeclaration $2 Nothing (reverse $5) }
-                | type TypeArgs static '=' '{' RecordFields '}' { Ast.recordTypeDeclaration $3 (Just $ reverse $2) (reverse $6) }
+                | type static '=' '{' RecordFields '}' { Ast.recordTypeDeclaration [Ast.typeConcrete $2] (reverse $5) }
+                | type TypeArgs '=' '{' RecordFields '}' { Ast.recordTypeDeclaration $2 (reverse $5) }
 
 {
 
