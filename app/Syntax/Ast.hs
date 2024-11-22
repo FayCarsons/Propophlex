@@ -16,7 +16,9 @@ module Syntax.Ast (
   fnType,
   binaryOp,
   unaryOp,
+  call,
   lambda,
+  lambdaMatch,
   letDeclaration,
   ifThen,
   ifThenElse,
@@ -37,6 +39,7 @@ module Syntax.Ast (
 
 import Data.Bifunctor (Bifunctor (first))
 import Data.ByteString.Lazy.Char8 (ByteString)
+import qualified Data.ByteString.Lazy.Char8 as BS
 
 newtype Identifier = Identifier ByteString
   deriving (Eq, Show)
@@ -85,7 +88,7 @@ literal = Literal
 
 data TypeRef
   = ConcreteT Const
-  | ApplicationT Const [Var]
+  | ApplicationT Const [TypeRef]
   | FnT [TypeRef]
   | VarT Var
   | Unit
@@ -94,8 +97,9 @@ data TypeRef
 typeVar :: ByteString -> TypeRef
 typeVar s = VarT $ Var s
 
-typeApplication :: ByteString -> [ByteString] -> TypeRef
-typeApplication t vs = ApplicationT (Const t) (map Var vs)
+typeApplication :: [TypeRef] -> TypeRef
+typeApplication (ConcreteT (Const constructor) : args) = ApplicationT (Const constructor) (reverse args)
+typeApplication _ = undefined
 
 typeConcrete :: ByteString -> TypeRef
 typeConcrete t = ConcreteT $ Const t
@@ -139,23 +143,24 @@ erasedArg :: Arg
 erasedArg = Erased
 
 data TypeDeclaration
-  = RecordTypeDeclaration Const (Maybe [TypeRef]) [(Const, TypeRef)]
+  = RecordTypeDeclaration Const (Maybe [TypeRef]) [(Var, TypeRef)]
   | SumTypeDeclaration Const (Maybe [TypeRef]) [(Const, TypeRef)]
   deriving (Eq, Show)
 
-typeVariables :: [ByteString] -> [TypeRef]
-typeVariables = map (VarT . Var)
-
-recordTypeDeclaration :: ByteString -> Maybe [ByteString] -> [(ByteString, TypeRef)] -> Ast ()
+recordTypeDeclaration :: ByteString -> Maybe [TypeRef] -> [(ByteString, TypeRef)] -> Ast ()
 recordTypeDeclaration typeName parameters fields =
-  DeclarationT () $ RecordTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (first Const) fields)
+  DeclarationT () $ RecordTypeDeclaration (Const typeName) parameters (map (first Var) fields)
 
 fieldAccess :: ByteString -> ByteString -> Ast ()
 fieldAccess v field = FieldAccess () (Identifier v) (Identifier field)
 
-sumTypeDeclaration :: ByteString -> Maybe [ByteString] -> [(ByteString, TypeRef)] -> Ast ()
+sumTypeDeclaration :: ByteString -> Maybe [TypeRef] -> [(ByteString, TypeRef)] -> Ast ()
 sumTypeDeclaration typeName parameters fields =
-  DeclarationT () $ SumTypeDeclaration (Const typeName) (typeVariables <$> parameters) (map (first Const) fields)
+  DeclarationT () $ SumTypeDeclaration (Const typeName) parameters (map (first Const) fields)
+
+data FunctionApplication annotation
+  = FunctionApplication (Ast annotation) [Ast annotation]
+  deriving (Eq, Show)
 
 data Ast annotation
   = Literal (Literal annotation)
@@ -168,7 +173,7 @@ data Ast annotation
   | Let annotation Identifier (Maybe TypeRef) [Ast annotation]
   | Lambda annotation [Arg] [Ast annotation]
   | Constant annotation Const TypeRef (Ast annotation)
-  | ApplicationF annotation (Ast annotation) (Ast annotation)
+  | Call annotation (FunctionApplication annotation)
   | If annotation (Ast annotation) (Ast annotation) (Ast annotation)
   | Match annotation (Ast annotation) [(Literal annotation, Ast annotation)]
   deriving (Eq, Show)
@@ -182,8 +187,17 @@ ifThenElse = If ()
 match :: Ast () -> [(Literal (), Ast ())] -> Ast ()
 match = Match ()
 
+call :: Ast () -> Ast () -> Ast ()
+call f xs = Call () (FunctionApplication f [xs])
+
 lambda :: [Arg] -> [Ast ()] -> Ast ()
 lambda = Lambda ()
+
+lambdaMatch :: [(Literal (), Ast ())] -> Ast ()
+lambdaMatch arms =
+  Lambda () [untypedArg x] [Match () (variable x) arms]
+ where
+  x = BS.pack "x"
 
 erase :: [Ast ()] -> Ast ()
 erase = Erase ()

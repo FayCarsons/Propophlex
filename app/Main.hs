@@ -10,10 +10,7 @@ simple :: ByteString
 simple =
   BS.pack $
     unlines
-      [ "type a Option = Some a | None"
-      , "let c : Int32 = match b"
-      , "| Some n -> n"
-      , "| None -> 0;"
+      [ "let f : Int32 Option -> Int32 = f;"
       ]
 
 getTokens :: IO ()

@@ -61,6 +61,7 @@ import qualified Syntax.Ast as Ast
   else { Located T.ELSE _ }
   match { Located T.MATCH _ }
   with { Located T.WITH _ }
+  fn { Located T.FN _ }
 
 %left ';'
 %right '@'
@@ -80,12 +81,15 @@ Expression : TypeDeclaration { $1 }
           | Literal { Ast.literal $1 }
           | Arithmetic { $1 }
           | SimpleExpr { $1 }
-          | SimpleExpr Expression %prec APPLICATION { Ast.ApplicationF () $1 $2 }
-          | Expression '@' Expression %prec APPLICATION { Ast.ApplicationF () $1 $3 }
+          | Call { $1 } 
           | LetBinding { $1 }
           | Lambda { $1 }
           | If { $1 }
           | Match { $1 }
+
+Call : Call SimpleExpr %prec APPLICATION { Ast.call $1 $2 }
+     | SimpleExpr SimpleExpr %prec APPLICATION { Ast.call $1 $2 }
+     | Expression '@' Expression { Ast.call $1 $3 }
 
 If : if Expression then Expression { Ast.ifThen $2 $4 }
    | if Expression then Expression else Expression { Ast.ifThenElse $2 $4 $6 }
@@ -110,12 +114,14 @@ Arithmetic : Expression '+' Expression { Ast.binaryOp Ast.Add $1 $3 }
           | Expression '/' Expression { Ast.binaryOp Ast.Div $1 $3 }
           | '-' Expression %prec NEG { Ast.unaryOp Ast.Neg $2 }
 
-TypeVars : identifier { [ $1 ] }
-         | TypeVars identifier { $2 : $1 }
+TypeArg : identifier { Ast.typeVar $1 }
+        | static { Ast.typeConcrete $1 }
 
-TypeRef : static { Ast.typeConcrete $1 }
-        | TypeVars static { Ast.typeApplication $2 $1 }
-        | identifier { Ast.typeVar $1 }
+TypeArgs : TypeArg TypeArg { [$1, $2] }  -- Must have at least two
+         | TypeArgs TypeArg { $2 : $1 }
+
+TypeRef : TypeArg { $1 }
+        | TypeArgs { Ast.typeApplication $1 }
         | '(' ')' { Ast.unitT }
         | '(' TypeRef arrow TypeRef ')' { Ast.fnType [$2, $4] }  -- Directly construct function type
         | '(' Arrows ')' { Ast.fnType (reverse $2) }  -- Handle multi-arg functions
@@ -124,18 +130,19 @@ Arrows : TypeRef arrow TypeRef { [$1, $3] }
        | Arrows arrow TypeRef { $3 : $1 }
 
 Signature : TypeRef { $1 }
-          | Arrows { Ast.fnType (reverse $1) }
+          | Arrows { Ast.fnType $1 }
 
 Arg : identifier { Ast.untypedArg $1 }
     | identifier ':' TypeRef { Ast.typedArg $1 $3 }
     | '_' { Ast.erasedArg }
 
 Args : Arg { [ $1 ] }
-     | Args ',' Arg { $3 : $1 }
+     | Args Arg { $2 : $1 }
      | RecordDestructure { $1 }
-     | RecordDestructure ',' Arg {  $3 : $1 }
+     | RecordDestructure Arg {  $2 : $1 }
 
-Lambda : '(' Args ')' arrow Expressions { Ast.lambda (reverse $2) (reverse $5) }
+Lambda : fn Args arrow Expressions { Ast.lambda (reverse $2) (reverse $4) }
+       | fn MatchArms { Ast.lambdaMatch $2 }
 
 Literal : int { Ast.int $1 }
         | float { Ast.float $1 }
@@ -173,9 +180,9 @@ RecordDestructure : '{' RecordFieldPun '}' { $2 }
 FieldAccess : identifier '.' identifier { Ast.fieldAccess $1 $3 }
 
 TypeDeclaration : type static '=' SumFields { Ast.sumTypeDeclaration $2 Nothing (reverse $4) }
-                | type TypeVars static '=' SumFields { Ast.sumTypeDeclaration $3 (Just $ reverse $2) (reverse $5) }
+                | type TypeArgs static '=' SumFields { Ast.sumTypeDeclaration $3 (Just $ reverse $2) (reverse $5) }
                 | type static '=' '{' RecordFields '}' { Ast.recordTypeDeclaration $2 Nothing (reverse $5) }
-                | type TypeVars static '=' '{' RecordFields '}' { Ast.recordTypeDeclaration $3 (Just $ reverse $2) (reverse $6) }
+                | type TypeArgs static '=' '{' RecordFields '}' { Ast.recordTypeDeclaration $3 (Just $ reverse $2) (reverse $6) }
 
 {
 

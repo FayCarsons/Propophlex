@@ -71,6 +71,7 @@ tokens :-
 <0> "else" { to T.ELSE }
 <0> "match" { to T.MATCH }
 <0> "with" { to T.WITH }
+<0> "fn" { to T.FN }
 <0> "->" { to T.ARROW }
 <0> "+" { to T.PLUS }
 <0> "-" { to T.MINUS }

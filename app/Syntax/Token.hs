@@ -49,4 +49,5 @@ data Token
   | ELSE
   | MATCH
   | WITH
+  | FN
   deriving (Eq, Show)
