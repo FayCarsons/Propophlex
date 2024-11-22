@@ -44,6 +44,7 @@ data Token
     TYPE
   | VIEW
   | LET
+  | CONST
   | IF
   | THEN
   | ELSE

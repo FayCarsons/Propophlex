@@ -24,5 +24,9 @@ getAST input = case Lexer.runAlex input propophlex of
     putStrLn "Success!"
     pPrint ast
 
+foo x y
+  | x == 10 = "a"
+  | y == 420 = "b"
+
 main :: IO ()
 main = BS.readFile "app/main.phlex" >>= getAST

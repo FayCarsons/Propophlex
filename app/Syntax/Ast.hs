@@ -4,6 +4,7 @@ module Syntax.Ast (
   float,
   char,
   string,
+  tuple,
   unitT,
   unitLiteral,
   recordLiteral,
@@ -20,6 +21,7 @@ module Syntax.Ast (
   lambda,
   lambdaMatch,
   letDeclaration,
+  constDeclaration,
   ifThen,
   ifThenElse,
   match,
@@ -58,6 +60,7 @@ data Literal annotation
   | LUnit
   | LRecord [(Identifier, Ast annotation)]
   | LSum Const [Ast annotation]
+  | LTuple [Literal annotation]
   deriving (Eq, Show)
 
 unitLiteral :: Literal annotation
@@ -70,6 +73,9 @@ recordLiteral =
 
 sumLiteral :: ByteString -> [Ast annotation] -> Literal annotation
 sumLiteral variant = LSum (Const variant)
+
+tuple :: [Literal ()] -> Literal ()
+tuple = LTuple
 
 int :: Int -> Literal annotation
 int = LInt
@@ -88,7 +94,7 @@ literal = Literal
 
 data TypeRef
   = ConcreteT Const
-  | ApplicationT Const [TypeRef]
+  | ApplicationT [TypeRef]
   | FnT [TypeRef]
   | VarT Var
   | Unit
@@ -97,12 +103,13 @@ data TypeRef
 typeVar :: ByteString -> TypeRef
 typeVar s = VarT $ Var s
 
-typeSigError unexpected = error $ "Ast.typeApplication: first type must be a concrete type. Got: " ++ show unexpected
+typeSigError label unexpected = error $ label ++ ": first type must be a concrete type. Got: " ++ show unexpected
 
 typeApplication :: [TypeRef] -> TypeRef
 typeApplication types = case types of
-  ConcreteT (Const constructor) : args -> ApplicationT (Const constructor) args
-  unexpected -> typeSigError unexpected
+  ConcreteT (Const constructor) : args -> ApplicationT $ ConcreteT (Const constructor) : reverse args
+  ts@((ApplicationT _) : _) -> ApplicationT ts
+  unexpected -> typeSigError "typeApplication" unexpected
 
 typeConcrete :: ByteString -> TypeRef
 typeConcrete t = ConcreteT $ Const t
@@ -154,16 +161,17 @@ recordTypeDeclaration :: [TypeRef] -> [(ByteString, TypeRef)] -> Ast ()
 recordTypeDeclaration types fields = DeclarationT () $ case types of
   [ConcreteT cons] -> RecordTypeDeclaration cons Nothing (map (first Var) fields)
   ConcreteT cons : typeParams -> RecordTypeDeclaration cons (Just $ reverse typeParams) (map (first Var) fields)
-  unexpected -> typeSigError unexpected
+  unexpected -> typeSigError "recordTypeDeclaration" unexpected
 
 fieldAccess :: ByteString -> ByteString -> Ast ()
 fieldAccess v field = FieldAccess () (Identifier v) (Identifier field)
 
 sumTypeDeclaration :: [TypeRef] -> [(ByteString, TypeRef)] -> Ast ()
-sumTypeDeclaration types variants = case types of
-  [ConcreteT cons] -> DeclarationT () $ SumTypeDeclaration cons Nothing (map (first Const) variants)
-  ConcreteT cons : typeParams -> DeclarationT () $ SumTypeDeclaration cons (Just $ reverse typeParams) (map (first Const) variants)
-  unexpected -> typeSigError unexpected
+sumTypeDeclaration types variants =
+  case types of
+    [ConcreteT cons] -> DeclarationT () $ SumTypeDeclaration cons Nothing (map (first Const) variants)
+    ConcreteT cons : typeParams -> DeclarationT () $ SumTypeDeclaration cons (Just $ reverse typeParams) (map (first Const) variants)
+    unexpected -> typeSigError "sumTypeDeclaration" unexpected
 
 data FunctionApplication annotation
   = FunctionApplication (Ast annotation) [Ast annotation]
@@ -179,7 +187,7 @@ data Ast annotation
   | UnaryOp annotation OpUnary (Ast annotation)
   | Let annotation Identifier (Maybe TypeRef) [Ast annotation]
   | Lambda annotation [Arg] [Ast annotation]
-  | Constant annotation Const TypeRef (Ast annotation)
+  | Constant annotation Const TypeRef [Ast annotation]
   | Call annotation (FunctionApplication annotation)
   | If annotation (Ast annotation) (Ast annotation) (Ast annotation)
   | Match annotation (Ast annotation) [(Literal annotation, Ast annotation)]
@@ -217,3 +225,6 @@ variable name = Variable () $ Identifier name
 
 letDeclaration :: ByteString -> Maybe TypeRef -> [Ast ()] -> Ast ()
 letDeclaration name = Let () (Identifier name)
+
+constDeclaration :: ByteString -> TypeRef -> [Ast ()] -> Ast ()
+constDeclaration = Constant () . Const

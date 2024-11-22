@@ -66,6 +66,7 @@ tokens :-
 <0> "type" { to T.TYPE }
 <0> "view" { to T.VIEW }
 <0> "let" { to T.LET }
+<0> "const" { to T.CONST }
 <0> "if" { to T.IF }
 <0> "then" { to T.THEN }
 <0> "else" { to T.ELSE }

@@ -1,0 +1,19 @@
+const return : a -> a Option = 
+  fn x -> Some x
+
+const bind : a Option -> (a -> b Option) -> b Option = 
+  fn 
+  | Some x -> f x
+  | None -> None
+
+const map : (a -> b) -> a Option -> b Option = 
+  fn o ->
+    bind o @ fn x ->
+      let res = f x; 
+      return res 
+
+const is_some_and : (a -> Bool) -> a Option -> bool = 
+  fn f o ->
+    match o
+    | Some x -> f x 
+    | None -> false
