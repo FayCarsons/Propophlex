@@ -10,7 +10,7 @@ simple :: ByteString
 simple =
   BS.pack $
     unlines
-      [ "let f : Int32 Option -> Int32 = f;"
+      [ "let f : (Int32 Maybe) String Result -> Int32 = f;"
       ]
 
 getTokens :: IO ()

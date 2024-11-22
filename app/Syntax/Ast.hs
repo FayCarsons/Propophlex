@@ -98,8 +98,9 @@ typeVar :: ByteString -> TypeRef
 typeVar s = VarT $ Var s
 
 typeApplication :: [TypeRef] -> TypeRef
-typeApplication (ConcreteT (Const constructor) : args) = ApplicationT (Const constructor) (reverse args)
-typeApplication _ = undefined
+typeApplication types = case types of
+  ConcreteT (Const constructor) : args -> ApplicationT (Const constructor) args
+  unexpected -> error $ "Ast.typeApplication: first type must be a concrete type. Got: " ++ show unexpected
 
 typeConcrete :: ByteString -> TypeRef
 typeConcrete t = ConcreteT $ Const t

@@ -116,6 +116,7 @@ Arithmetic : Expression '+' Expression { Ast.binaryOp Ast.Add $1 $3 }
 
 TypeArg : identifier { Ast.typeVar $1 }
         | static { Ast.typeConcrete $1 }
+        | '(' TypeArgs ')' { Ast.typeApplication $2 }
 
 TypeArgs : TypeArg TypeArg { [$1, $2] }  -- Must have at least two
          | TypeArgs TypeArg { $2 : $1 }
