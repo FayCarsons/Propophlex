@@ -52,7 +52,7 @@ import qualified Syntax.Ast as Ast
   char { Located (T.TChar $$) _ }
   string { Located (T.TString $$) _ }
   identifier { Located (T.Identifier $$) _ }
-  static { Located (T.Static $$) _ }
+  constIdent { Located (T.ConstIdent $$) _ }
   type { Located T.TYPE _ }
   view { Located T.VIEW _ }
   let { Located T.LET _ }
@@ -81,7 +81,7 @@ TopLevels : TopLevel { [$1] }
 TopLevel : TypeDeclaration { $1 }
          | ConstDeclaration { $1 }
 
-ConstDeclaration : const identifier ':' Signature '=' Expressions { Ast.constDeclaration $2 $4 $6 } 
+ConstDeclaration : const identifier ':' Signature '=' Expression { Ast.constDeclaration $2 $4 $6 } 
 
 Expressions : Expression { [$1] }
             | Expressions Expression { $2 : $1 }
@@ -102,7 +102,10 @@ Call : Call SimpleExpr %prec APPLICATION { Ast.call $1 $2 }
 If : if Expression then Expression { Ast.ifThen $2 $4 }
    | if Expression then Expression else Expression { Ast.ifThenElse $2 $4 $6 }
 
-MatchArm : '|' Literal arrow Expression { ($2, $4) }
+MatchArm : '|' Literal arrow Expression { (Ast.matchLiteral $2, $4) }
+         | '|' identifier arrow Expression { (Ast.matchBinding $2, $4) }
+         | '|' '_' arrow Expression { (Ast.matchErase, $4) }
+
 MatchArms : MatchArm { [$1] }
           | MatchArms MatchArm { $2 : $1 }
 
@@ -120,10 +123,10 @@ Arithmetic : Expression '+' Expression { Ast.binaryOp Ast.Add $1 $3 }
           | Expression '-' Expression { Ast.binaryOp Ast.Sub $1 $3 }
           | Expression '*' Expression { Ast.binaryOp Ast.Mul $1 $3 }
           | Expression '/' Expression { Ast.binaryOp Ast.Div $1 $3 }
-          | '-' Expression %prec NEG { Ast.unaryOp Ast.Neg $2 }
+          | '-' Expression %prec NEG { Ast.call (Ast.variable $ BS.pack "-") $2 }
 
 TypeArg : identifier { Ast.typeVar $1 }
-        | static { Ast.typeConcrete $1 }
+        | constIdent { Ast.typeConcrete $1 }
         | '(' TypeArgs ')' { Ast.typeApplication $2 }
 
 TypeArgs : TypeArg TypeArg { [$2, $1] }
@@ -151,7 +154,7 @@ Args : Arg { [ $1 ] }
      | RecordDestructure Arg {  $2 : $1 }
 
 Lambda : fn Args arrow Expressions { Ast.lambda (reverse $2) (reverse $4) }
-       | fn MatchArms { Ast.lambdaMatch $2 }
+       | fn MatchArms { Ast.lambdaMatch $ reverse $2 }
 
 Literal : int { Ast.int $1 }
         | float { Ast.float $1 }
@@ -165,14 +168,15 @@ Literal : int { Ast.int $1 }
 TupleFields : Literal { [$1] }
             | TupleFields ',' Literal { $3 : $1 }
  
-SumField : static TypeRef { ($1, $2) }
-         | static { ($1, Ast.unitT) }
+SumField : constIdent TypeRef { ($1, $2) }
+         | constIdent '{' RecordFields '}' { ($1, Ast.anonymousRecordT $ reverse $3) }
+         | constIdent { ($1, Ast.unitT) }
 
 SumFields : SumField { [$1] }
           | SumFields '|' SumField { $3 : $1 }
 
-SumLiteral : static Expressions { Ast.sumLiteral $1 (reverse $2) }
-           | static { Ast.sumLiteral $1 [] }
+SumLiteral : constIdent Expressions { Ast.sumLiteral $1 (reverse $2) }
+           | constIdent { Ast.sumLiteral $1 [] }
 
 RecordField : identifier ':' TypeRef { ($1, $3) }
 RecordFields : RecordField { [$1] }
@@ -192,9 +196,9 @@ RecordDestructure : '{' RecordFieldPun '}' { $2 }
 
 FieldAccess : identifier '.' identifier { Ast.fieldAccess $1 $3 }
 
-TypeDeclaration : type static '=' SumFields { Ast.sumTypeDeclaration [Ast.typeConcrete $2] (reverse $4) }
+TypeDeclaration : type constIdent '=' SumFields { Ast.sumTypeDeclaration [Ast.typeConcrete $2] (reverse $4) }
                 | type TypeArgs '=' SumFields { Ast.sumTypeDeclaration $2 (reverse $4) }
-                | type static '=' '{' RecordFields '}' { Ast.recordTypeDeclaration [Ast.typeConcrete $2] (reverse $5) }
+                | type constIdent '=' '{' RecordFields '}' { Ast.recordTypeDeclaration [Ast.typeConcrete $2] (reverse $5) }
                 | type TypeArgs '=' '{' RecordFields '}' { Ast.recordTypeDeclaration (reverse $2) (reverse $5) }
 
 {

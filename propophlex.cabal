@@ -48,7 +48,17 @@ executable propophlex
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules: Syntax.Ast, Syntax.Token, Syntax.Lexer, Syntax.Parser
+    other-modules: Syntax.Ast
+                   , Syntax.Token
+                   , Syntax.Lexer
+                   , Syntax.Parser
+                   , Syntax.TypeDef
+                   , Syntax.TypeRef
+                   , Type.IR
+                   , Type.Context
+                   , Type.Type
+                   , Type.Error
+                   , Type.Solve
 
     other-extensions: FlexibleContexts
 
@@ -59,6 +69,10 @@ executable propophlex
                       , bytestring
                       , pretty-simple
                       , llvm-hs-pure >= 9
+                      , containers
+                      , hashtables
+                      , lens
+                      , mtl
 
     build-tool-depends: alex:alex, happy:happy
 

@@ -1,0 +1,9 @@
+type Bool = True | False
+
+const gcd : Int -> Int -> Int = fn _ _ -> 1
+
+const is_coprime : Int -> Int -> Bool =
+  fn a b -> 
+    match gcd a b 
+    | 1 -> True
+    | _ -> false

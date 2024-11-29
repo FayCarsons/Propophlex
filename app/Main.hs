@@ -8,25 +8,23 @@ import Text.Pretty.Simple (pPrint)
 
 getTokens :: ByteString -> IO ()
 getTokens input = case Lexer.scanMany input of
-  Left e -> do
+  Left e ->
     putStrLn "Failure: "
-    pPrint e
+      *> pPrint e
   Right tokens -> do
     putStrLn "Success!\n"
     pPrint $ Lexer.unwrapTokens tokens
 
 getAST :: ByteString -> IO ()
 getAST input = case Lexer.runAlex input propophlex of
-  Left e -> do
+  Left e ->
     putStrLn "Failure: "
-    pPrint e
-  Right ast -> do
+      *> pPrint e
+  Right ast ->
     putStrLn "Success!"
-    pPrint ast
-
-foo x y
-  | x == 10 = "a"
-  | y == 420 = "b"
+      *> pPrint ast
 
 main :: IO ()
-main = BS.readFile "app/main.phlex" >>= getAST
+main =
+  BS.readFile "app/phlib/main.phlex"
+    >>= getAST

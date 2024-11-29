@@ -39,7 +39,7 @@ data Token
   | TChar Char
   | TString ByteString
   | Identifier ByteString
-  | Static ByteString
+  | ConstIdent ByteString
   | -- keywords
     TYPE
   | VIEW

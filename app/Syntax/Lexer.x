@@ -52,7 +52,7 @@ $horizontal_space = [$space$tab]
 @newline = $return?$linefeed
 
 @identifier = $lower [$lower$ident_legal$digit]*
-@static = $upper [$lower$ident_legal$digit]*
+@const = $upper [$lower$ident_legal$digit]*
 
 $stringchar = [\0-\255] # [\"\\]   -- any byte except quote and backslash
 @escape = \\\\ | \\\"               -- escaped backslash or quote
@@ -103,7 +103,7 @@ tokens :-
 <0> $digit+ { tokInt }
 <0> @string { tokString }
 <0> @char { tokChar }
-<0> @static { tokStatic }
+<0> @const { tokStatic }
 <0> @identifier { tokId }
 
 
@@ -146,7 +146,7 @@ tokStatic :: AlexAction (Located T.Token)
 tokStatic inp@(_, _, str, _) len = 
   pure $ Located tok loc
  where 
-  tok = T.Static $ BS.take (fromIntegral len) str
+  tok = T.ConstIdent $ BS.take (fromIntegral len) str
   loc = newLoc inp len
 
 tokInt :: AlexAction (Located T.Token)
