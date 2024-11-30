@@ -2,6 +2,7 @@
 
 {-# OPTIONS_GHC -w #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFunctor #-}
@@ -24,6 +25,8 @@ module Syntax.Lexer(
 import Data.ByteString.Lazy.Char8 (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Syntax.Token as T
+import qualified Data.Map as Map
+import Syntax.Infix (InfixOp(..), operatorTokens)
 import GHC.Generics hiding (to)
 
 }
@@ -45,14 +48,14 @@ $ascii      = [\x21-\x7E]
 $cont         = [\x80-\xBF]
 $ident_legal = [\'\_\?$digit]
 $horizontal_space = [$space$tab]
-
+$operator_char = [\+\-\*\/\>\<\=\|\&\^\!\@\#\$\%\~\:\.]
 
 -- Regular Expressions
 
 @newline = $return?$linefeed
 
-@identifier = $lower [$lower$ident_legal$digit]*
-@const = $upper [$lower$ident_legal$digit]*
+@identifier = $lower [$letter$ident_legal$digit]*
+@const = $upper [$letter$ident_legal$digit]*
 
 $stringchar = [\0-\255] # [\"\\]   -- any byte except quote and backslash
 @escape = \\\\ | \\\"               -- escaped backslash or quote
@@ -61,50 +64,44 @@ $stringchar = [\0-\255] # [\"\\]   -- any byte except quote and backslash
 
 
 tokens :- 
-<0> @newline+ ;
-<0> $horizontal_space+ ;
-<0> "type" { to T.TYPE }
-<0> "view" { to T.VIEW }
-<0> "let" { to T.LET }
-<0> "const" { to T.CONST }
-<0> "if" { to T.IF }
-<0> "then" { to T.THEN }
-<0> "else" { to T.ELSE }
-<0> "match" { to T.MATCH }
-<0> "with" { to T.WITH }
-<0> "fn" { to T.FN }
-<0> "->" { to T.ARROW }
-<0> "+" { to T.PLUS }
-<0> "-" { to T.MINUS }
-<0> "/" { to T.BACKSLASH }
-<0> "*" { to T.ASTERIK }
-<0> "%" { to T.PERCENT }
-<0> "@" { to T.AT }
-<0> ":" { to T.COLON }
-<0> ";" { to T.SEMICOLON }
-<0> "," { to T.COMMA }
-<0> "==" { to T.EQ }
-<0> "=" { to T.ASSIGN }
-<0> "!=" { to T.NEQ }
-<0> "<" { to T.LT }
-<0> "<=" { to T.LTE }
-<0> ">" { to T.GT }
-<0> ">=" { to T.GTE }
-<0> "!" { to T.EXCLAMATION }
-<0> "|" { to T.BAR }
-<0> "." { to T.PERIOD }
-<0> "_" { to T.UNDERSCORE }
-<0> "(" { to T.LEFT_PAREN }
-<0> ")" { to T.RIGHT_PAREN }
-<0> "[" { to T.LEFT_SQUARE }
-<0> "]" { to T.RIGHT_SQUARE }
-<0> "{" { to T.LEFT_CURLY }
-<0> "}" { to T.RIGHT_CURLY }
-<0> $digit+ { tokInt }
-<0> @string { tokString }
-<0> @char { tokChar }
-<0> @const { tokStatic }
-<0> @identifier { tokId }
+  @newline+ ;
+  $horizontal_space+ ;
+  "type" { to T.TYPE }
+  "view" { to T.VIEW }
+  "let" { to T.LET }
+  "const" { to T.CONST }
+  "if" { to T.IF }
+  "then" { to T.THEN }
+  "else" { to T.ELSE }
+  "match" { to T.MATCH }
+  "with" { to T.WITH }
+  "fn" { to T.FN }
+  "->" { to T.ARROW }
+  "/" { to T.BACKSLASH }
+  ":" { to T.COLON }
+  ";" { to T.SEMICOLON }
+  "," { to T.COMMA }
+  "=" { to T.ASSIGN }
+  "!" { to T.EXCLAMATION }
+  "|" { to T.BAR }
+  "." { to T.PERIOD }
+  "_" { to T.UNDERSCORE }
+  "(" { to T.LEFT_PAREN }
+  ")" { to T.RIGHT_PAREN }
+  "[" { to T.LEFT_SQUARE }
+  "]" { to T.RIGHT_SQUARE }
+  "{" { to T.LEFT_CURLY }
+  "}" { to T.RIGHT_CURLY }
+  $operator_char+ { \inp@(_, _, str, _) len -> do
+                      let s = BS.take (fromIntegral len) str
+                      case Map.lookup s operatorTokens of 
+                        Just binop -> to (T.TBinop binop) inp len
+                        Nothing -> alexError $ "Unknown operator: " ++ show s }
+  $digit+ { tokInt }
+  @string { tokString }
+  @char { tokChar }
+  @const { tokStatic }
+  @identifier { tokId }
 
 
 {

@@ -54,6 +54,8 @@ executable propophlex
                    , Syntax.Parser
                    , Syntax.TypeDef
                    , Syntax.TypeRef
+                   , Syntax.Infix
+                   , Syntax.Test
                    , Type.IR
                    , Type.Context
                    , Type.Type
@@ -73,6 +75,7 @@ executable propophlex
                       , hashtables
                       , lens
                       , mtl
+                      , template-haskell
 
     build-tool-depends: alex:alex, happy:happy
 

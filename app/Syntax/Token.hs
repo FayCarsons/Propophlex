@@ -1,6 +1,7 @@
 module Syntax.Token (Token (..)) where
 
 import Data.ByteString.Lazy.Char8 (ByteString)
+import Syntax.Infix (InfixOp)
 
 data Token
   = -- delimiters
@@ -12,22 +13,12 @@ data Token
   | RIGHT_SQUARE
   | EOI
   | -- Symbols
-    PLUS
-  | MINUS
-  | BACKSLASH
+    BACKSLASH
   | ASTERIK
-  | PERCENT
-  | AT
   | COLON
   | SEMICOLON
   | COMMA
   | ASSIGN
-  | EQ
-  | NEQ
-  | LT
-  | LTE
-  | GT
-  | GTE
   | EXCLAMATION
   | BAR
   | PERIOD
@@ -38,6 +29,7 @@ data Token
   | TFloat Double
   | TChar Char
   | TString ByteString
+  | TBinop InfixOp
   | Identifier ByteString
   | ConstIdent ByteString
   | -- keywords

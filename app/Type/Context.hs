@@ -91,21 +91,12 @@ registerScope name ty = do
   liftIO $ Ref.modifyIORef' (scope ctx) $ Map.insert name ty
 
 clone :: IORef a -> IO (IORef a)
-clone = Ref.newIORef <=< Ref.readIORef
+clone = Ref.readIORef >=> Ref.newIORef
 
 withNewScope :: ContextM a -> ContextM a
 withNewScope action = do
-  Context{scope, types, nextUVar, nextSkolem} <- ask
+  ctx <- ask
   newCtx <- liftIO $ do
-    scope' <- clone scope
-    types' <- clone types
-    nextUVar' <- clone nextUVar
-    nextSkolem' <- clone nextSkolem
-    return
-      Context
-        { scope = scope'
-        , types = types'
-        , nextUVar = nextUVar'
-        , nextSkolem = nextSkolem'
-        }
+    scope' <- clone (scope ctx)
+    return ctx{scope = scope'}
   local (const newCtx) action

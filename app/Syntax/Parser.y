@@ -26,26 +26,15 @@ import qualified Syntax.Ast as Ast
   '[' { Located T.LEFT_SQUARE _ }
   ']' { Located T.RIGHT_SQUARE _ }
   EOI { Located T.EOI _ }
-  '+' { Located T.PLUS _ }
-  '-' { Located T.MINUS _ }
-  '/' { Located T.BACKSLASH _ }
-  '*' { Located T.ASTERIK _ }
-  '%' { Located T.PERCENT _ }
-  '@' { Located T.AT _ }
   ':' { Located T.COLON _ }
   ';' { Located T.SEMICOLON _ }
   ',' { Located T.COMMA _ }
   '=' { Located T.ASSIGN _ }
-  eq  { Located T.EQ _ }
-  neq { Located T.NEQ _ }
-  lt  { Located T.LT _ }
-  lte { Located T.LTE _ }
-  gt  { Located T.GT _ }
-  gte { Located T.GTE _ }
   '!'  { Located T.EXCLAMATION _ }
   '|' { Located T.BAR _ }
   '.' { Located T.PERIOD _ }
   '_' { Located T.UNDERSCORE _ }
+  binop { Located (T.TBinop $$) _ }
   arrow { Located T.ARROW _ }
   int { Located (T.TInt $$) _ }
   float { Located (T.TFloat $$) _ }
@@ -65,10 +54,6 @@ import qualified Syntax.Ast as Ast
   fn { Located T.FN _ }
 
 %left ';'
-%right '@'
-%left '+' '-'
-%left '*' '/'
-%nonassoc NEG
 %left APPLICATION
  
 %%
@@ -97,7 +82,6 @@ Expression : Literal { Ast.literal $1 }
 
 Call : Call SimpleExpr %prec APPLICATION { Ast.call $1 $2 }
      | SimpleExpr SimpleExpr %prec APPLICATION { Ast.call $1 $2 }
-     | Expression '@' Expression { Ast.call $1 $3 }
 
 If : if Expression then Expression { Ast.ifThen $2 $4 }
    | if Expression then Expression else Expression { Ast.ifThenElse $2 $4 $6 }
@@ -119,11 +103,8 @@ LetBinding : let identifier ':' Signature '=' Expressions ';' { Ast.letDeclarati
            | let identifier '=' Expressions ';' { Ast.letDeclaration $2 Nothing $4 }
            | let '_' '=' Expressions ';' { Ast.erase $4 }
 
-Arithmetic : Expression '+' Expression { Ast.binaryOp Ast.Add $1 $3 }
-          | Expression '-' Expression { Ast.binaryOp Ast.Sub $1 $3 }
-          | Expression '*' Expression { Ast.binaryOp Ast.Mul $1 $3 }
-          | Expression '/' Expression { Ast.binaryOp Ast.Div $1 $3 }
-          | '-' Expression %prec NEG { Ast.call (Ast.variable $ BS.pack "-") $2 }
+Arithmetic : Expression binop Expression { Ast.binaryInfix $2 $1 $3 }
+           | binop Expression { Ast.unary $1 $2 }
 
 TypeArg : identifier { Ast.typeVar $1 }
         | constIdent { Ast.typeConcrete $1 }

@@ -17,7 +17,8 @@ module Syntax.Ast (
   typeApplication,
   typeConcrete,
   fnType,
-  binaryOp,
+  binaryInfix,
+  unary,
   call,
   lambda,
   lambdaMatch,
@@ -38,7 +39,6 @@ module Syntax.Ast (
   recordTypeDeclaration,
   anonymousRecordT,
   fieldAccess,
-  OpBinary (..),
   Const (..),
   Var (..),
   Identifier (..),
@@ -47,6 +47,7 @@ module Syntax.Ast (
 import Data.Bifunctor (Bifunctor (first))
 import Data.ByteString.Lazy.Char8 (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
+import Syntax.Infix (InfixOp)
 import Syntax.TypeDef (ADT (..), TypeDefinition (..))
 import Syntax.TypeRef (TypeRef (..))
 import Type.Type (Type (..))
@@ -106,7 +107,7 @@ literal = \case
   LChar c -> Literal Type.char (LChar c)
   LString s -> Literal Type.string (LString s)
   LUnit -> Literal Type.unit LUnit
-  other -> undefined
+  other -> Literal Type.Unsolved other
 
 typeVar :: ByteString -> TypeRef
 typeVar = VarT
@@ -128,15 +129,11 @@ fnType = FnT
 anonymousRecordT :: [(ByteString, TypeRef)] -> TypeRef
 anonymousRecordT = AnonymousRecord
 
-data OpBinary
-  = Add
-  | Sub
-  | Mul
-  | Div
-  deriving (Eq, Show)
+binaryInfix :: InfixOp -> Ast Type -> Ast Type -> Ast Type
+binaryInfix op l r = Call Unsolved (FunctionApplication (Call Unsolved (FunctionApplication (Infix Unsolved op) l)) r)
 
-binaryOp :: OpBinary -> Ast Type -> Ast Type -> Ast Type
-binaryOp = BinaryOp Unsolved
+unary :: InfixOp -> Ast Type -> Ast Type
+unary op l = Call Unsolved (FunctionApplication (Infix Unsolved op) l)
 
 data Arg
   = Arg Var
@@ -173,16 +170,16 @@ sumTypeDeclaration params variants = TypeDef Unsolved $ case params of
   unexpected -> typeSigError "sumTypeDeclaration" unexpected
 
 data FunctionApplication annotation
-  = FunctionApplication (Ast annotation) [Ast annotation]
+  = FunctionApplication (Ast annotation) (Ast annotation)
   deriving (Eq, Show)
 
 data Ast annotation
   = Literal annotation (Literal annotation)
   | Erase annotation [Ast annotation]
   | Variable annotation Identifier
+  | Infix annotation InfixOp
   | FieldAccess annotation Identifier Identifier
   | TypeDef annotation TypeDefinition
-  | BinaryOp annotation OpBinary (Ast annotation) (Ast annotation)
   | Let annotation Identifier (Maybe TypeRef) [Ast annotation]
   | Fn annotation [Arg] [Ast annotation]
   | Constant annotation Const TypeRef (Ast annotation)
@@ -215,7 +212,7 @@ matchErase :: Pattern Type
 matchErase = EraseP Unsolved
 
 call :: Ast Type -> Ast Type -> Ast Type
-call f xs = Call Unsolved $ FunctionApplication f [xs]
+call f xs = Call Unsolved $ FunctionApplication f xs
 
 lambda :: [Arg] -> [Ast Type] -> Ast Type
 lambda = Fn Unsolved
