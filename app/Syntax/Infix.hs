@@ -1,13 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Syntax.Infix (Fixity (..), InfixOp (..), operatorTable, operatorTokens, validateFixityMap, validateTokenMap) where
 
-import Data.Bifunctor (Bifunctor (first))
-import Data.ByteString.Lazy.Char8 (ByteString)
-import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import Data.Text (Text)
 import GHC.Generics (Associativity (..))
 import Language.Haskell.TH hiding (Fixity)
 import Prelude hiding (EQ, GT, LT)
@@ -92,39 +91,37 @@ operatorTable =
     , (Div, Fixity 14 LeftAssociative)
     ]
 
-operatorTokens :: Map ByteString InfixOp
+operatorTokens :: Map Text InfixOp
 operatorTokens =
-  Map.fromList $
-    map
-      (first BS.pack)
-      [ ("+", Plus)
-      , ("-", Minus)
-      , ("*", Mul)
-      , ("/", Div)
-      , (">", GT)
-      , ("<", LT)
-      , (">=", GTE)
-      , ("<=", LTE)
-      , ("==", EQ)
-      , ("!=", NEQ)
-      , ("&&", And)
-      , ("||", Or)
-      , ("^^", Xor)
-      , (">>=", Bind)
-      , ("|>", Pipe)
-      , ("++", Concat)
-      , ("<>", Append)
-      , ("::", Cons)
-      , ("&", BitAnd)
-      , ("|", BitOr)
-      , ("^", BitXor)
-      , (">>", RightShift)
-      , ("<<", LeftShift)
-      , (">>>", RightRotate)
-      , ("<<<", LeftRotate)
-      , ("+>", Offset)
-      , ("<<-", Store)
-      ]
+  Map.fromList
+    [ ("+", Plus)
+    , ("-", Minus)
+    , ("*", Mul)
+    , ("/", Div)
+    , (">", GT)
+    , ("<", LT)
+    , (">=", GTE)
+    , ("<=", LTE)
+    , ("==", EQ)
+    , ("!=", NEQ)
+    , ("&&", And)
+    , ("||", Or)
+    , ("^^", Xor)
+    , (">>=", Bind)
+    , ("|>", Pipe)
+    , ("++", Concat)
+    , ("<>", Append)
+    , ("::", Cons)
+    , ("&", BitAnd)
+    , ("|", BitOr)
+    , ("^", BitXor)
+    , (">>", RightShift)
+    , ("<<", LeftShift)
+    , (">>>", RightRotate)
+    , ("<<<", LeftRotate)
+    , ("+>", Offset)
+    , ("<<-", Store)
+    ]
 
 validateFixityMap :: Q [Dec]
 validateFixityMap = do

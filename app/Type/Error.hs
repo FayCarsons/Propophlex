@@ -1,10 +1,10 @@
 module Type.Error (Error (..)) where
 
-import Data.ByteString.Lazy.Char8 (ByteString)
+import Data.Text (Text)
 import Type.Type
 
 data Error
-  = UnknownType ByteString
-  | UnboundVar ByteString
-  | Expected ByteString ByteString
+  = UnknownType Text
+  | UnboundVar Text
+  | Expected Text Text
   | CannotErase Type

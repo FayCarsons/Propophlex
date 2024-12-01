@@ -1,5 +1,4 @@
 {
-
 {-# OPTIONS_GHC -w #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 {-# LANGUAGE LambdaCase #-}
@@ -8,6 +7,8 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Syntax.Lexer(
   Alex
@@ -22,8 +23,9 @@ module Syntax.Lexer(
   , unwrapTokens
 ) where
 
-import Data.ByteString.Lazy.Char8 (ByteString)
-import qualified Data.ByteString.Lazy.Char8 as BS
+import Data.Text (Text)
+import qualified Data.Text as Text
+import Data.Int (Int64)
 import qualified Syntax.Token as T
 import qualified Data.Map as Map
 import Syntax.Infix (InfixOp(..), operatorTokens)
@@ -31,7 +33,7 @@ import GHC.Generics hiding (to)
 
 }
 
-%wrapper "monadUserState-bytestring"
+%wrapper "monadUserState-strict-text"
 
 -- Character sets
 
@@ -92,11 +94,7 @@ tokens :-
   "]" { to T.RIGHT_SQUARE }
   "{" { to T.LEFT_CURLY }
   "}" { to T.RIGHT_CURLY }
-  $operator_char+ { \inp@(_, _, str, _) len -> do
-                      let s = BS.take (fromIntegral len) str
-                      case Map.lookup s operatorTokens of 
-                        Just binop -> to (T.TBinop binop) inp len
-                        Nothing -> alexError $ "Unknown operator: " ++ show s }
+  $operator_char+ { matchOperator }
   $digit+ { tokInt }
   @string { tokString }
   @char { tokChar }
@@ -106,8 +104,7 @@ tokens :-
 
 {
 
-data AlexUserState 
-  = AlexUserState
+data AlexUserState = AlexUserState
 
 alexInitUserState :: AlexUserState
 alexInitUserState = AlexUserState
@@ -117,61 +114,65 @@ alexEOF = do
   (pos, _, _, _) <- alexGetInput
   pure $ Located T.EOI (Location pos pos)
 
-data Location
-  = Location {start :: AlexPosn, stop :: AlexPosn}
-  deriving (Eq, Show, Ord)
+data Location = Location 
+  { start :: AlexPosn
+  , stop :: AlexPosn
+  } deriving (Eq, Show, Ord)
 
-data Located a
-  = Located
+data Located a = Located
   { inner :: !a
   , loc :: Location
-  }
-  deriving (Eq, Show, Ord, Generic, Functor, Foldable, Traversable)
+  } deriving (Eq, Show, Ord, Generic, Functor, Foldable, Traversable)
 
-newLoc :: AlexInput -> Int64 -> Location
-newLoc (start, _, str, _) len =
-  let stop = BS.foldl' alexMove start $ BS.take (fromIntegral len) str
+newLoc :: AlexInput -> Int -> Location
+newLoc (start, _, _, str) len =
+  let stop = Text.foldl' alexMove start (Text.take len str)
    in Location{start, stop}
 
+matchOperator :: AlexAction (Located T.Token)
+matchOperator inp@(_, _, _, str) len = case Map.lookup str operatorTokens of 
+    Just binop -> to (T.TBinop binop) inp len 
+    Nothing -> alexError $ "Unknown operator: " ++ Text.unpack str
+
 tokId :: AlexAction (Located T.Token)
-tokId inp@(_, _, str, _) len =
+tokId inp@(_, _, _, str) len =
   pure $ Located tok loc
  where 
-  tok = T.Identifier $ BS.take (fromIntegral len) str
+  tok = T.Identifier $ Text.take len str
   loc = newLoc inp len
 
 tokStatic :: AlexAction (Located T.Token)
-tokStatic inp@(_, _, str, _) len = 
+tokStatic inp@(_, _, _, str) len = 
   pure $ Located tok loc
  where 
-  tok = T.ConstIdent $ BS.take (fromIntegral len) str
+  tok = T.ConstIdent $ Text.take len str
   loc = newLoc inp len
 
 tokInt :: AlexAction (Located T.Token)
-tokInt inp@(_,_,str,_) len = 
+tokInt inp@(_, _, _, str) len = 
   pure $ Located tok loc
  where
-   tok = T.TInt $ read $ BS.unpack $ BS.take len str 
+   tok = T.TInt $ read $ Text.unpack $ Text.take len str 
    loc = newLoc inp len 
 
 tokString :: AlexAction (Located T.Token)
-tokString inp@(_, _, str, _) len = 
+tokString inp@(_, _, _, str) len = 
   pure $ Located tok loc 
  where 
-  tok = T.TString $ BS.take (fromIntegral (pred len)) (BS.drop 1 str)
+  tok = T.TString $ Text.take (pred len) (Text.drop 1 str)
   loc = newLoc inp len
 
 tokChar :: AlexAction (Located T.Token)
-tokChar inp@(_, _, str, _) len = 
+tokChar inp@(_, _, _, str) len = 
   pure $ Located tok loc
  where 
-  tok = T.TChar $ BS.head (BS.drop 1 str)
+  tok = T.TChar $ Text.head (Text.drop 1 str)
   loc = newLoc inp len
 
 to :: T.Token -> AlexAction (Located T.Token)
-to ctor inp len = pure $ Located ctor (newLoc inp len) 
+to ctor inp len = pure $ Located ctor $ newLoc inp len
 
-scanMany :: ByteString -> Either String [Located T.Token]
+scanMany :: Text -> Either String [Located T.Token]
 scanMany input = runAlex input go
   where 
     go = do 
@@ -183,9 +184,5 @@ scanMany input = runAlex input go
           (output :) <$> go
 
 unwrapTokens :: [Located a] -> [a]
-unwrapTokens toks = go [] toks
-  where 
-    go acc (Located{inner}:xs) = go (inner:acc) xs
-    go acc [] = reverse acc
-
+unwrapTokens = map inner
 }

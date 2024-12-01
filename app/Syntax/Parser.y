@@ -1,12 +1,11 @@
 {
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Syntax.Parser(propophlex) where
 
 import Data.Monoid (First(..))
 import qualified Data.Text as Text
-import qualified Data.Text.Lazy as LT
-import qualified Data.Text.Lazy.Builder as LB
-import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Syntax.Token as T
 import qualified Syntax.Lexer as Lexer 
 import Syntax.Lexer (Located(..))
@@ -189,28 +188,27 @@ slice offset len = take len . drop offset
 
 parseError :: Located T.Token -> Lexer.Alex a
 parseError Located{inner, loc} = do 
-  (Lexer.AlexPn offset line column, prevChar, pendingInput, _) <- Lexer.alexGetInput
+  (Lexer.AlexPn offset line column, prevChar, _, input) <- Lexer.alexGetInput
   let token = inner
       contextLines = 2
-      input = pendingInput
-      allLines = Text.splitOn (Text.pack "\n") $ Text.pack (BS.unpack input)
+      allLines = Text.splitOn "\n" input
       startLine = max 1 (line - contextLines)
       endLine = min (length allLines) (line + contextLines)
       surrounding = zip [startLine..] (slice (pred startLine) (succ endLine - startLine) allLines)
-      pointer = replicate (pred column) ' ' <> "^"
+      pointer = Text.pack $ replicate (pred column) ' ' <> "^"
       formatLine (ln, content) =
-        show ln <> " | " <> Text.unpack content <>
+        Text.show ln <> " | " <> content <>
         (if ln == line then 
-            "\n" <> (replicate (length (show ln) + 3) ' ') <> pointer
+            "\n" <> (Text.pack $ replicate (length (show ln) + 3) ' ') <> pointer
           else "")
 
-      errorMsg = unlines $  
-        [ "Parse error at line " <> show line <> ", column " <> show column
-        , "Unexpected token: " <> show token
+      errorMsg = Text.unlines $  
+        [ "Parse error at line " <> Text.show line <> ", column " <> Text.show column
+        , "Unexpected token: " <> Text.show token
         , "Context:" 
         ] ++ map formatLine surrounding
 
-  Lexer.alexError errorMsg
+  Lexer.alexError $ Text.unpack errorMsg
 
 lexer :: (Located T.Token -> Lexer.Alex a) -> Lexer.Alex a
 lexer = (=<< Lexer.alexMonadScan)

@@ -7,12 +7,12 @@ module Type.Context (Context (..), ContextM, new, lookupScope, lookupType, fresh
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Control.Monad.Writer.Strict
-import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.IORef (IORef)
 import qualified Data.IORef as Ref
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (isNothing)
+import Data.Text (Text)
 import Syntax.TypeDef (TypeDefinition)
 import Type.Error (Error)
 import qualified Type.Error as Error
@@ -20,8 +20,8 @@ import Type.Type (Type)
 
 data Context
   = Context
-  { scope :: IORef (Map ByteString Type)
-  , types :: IORef (Map ByteString TypeDefinition)
+  { scope :: IORef (Map Text Type)
+  , types :: IORef (Map Text TypeDefinition)
   , nextUVar :: IORef Int
   , nextSkolem :: IORef Int
   }
@@ -51,7 +51,7 @@ new = do
 modifyIORefM :: (MonadIO m) => IORef a -> (a -> (a, b)) -> m b
 modifyIORefM ref f = liftIO $ Ref.atomicModifyIORef' ref f
 
-lookupScope :: ByteString -> ContextM (Maybe Type)
+lookupScope :: Text -> ContextM (Maybe Type)
 lookupScope ident = do
   ctx <- ask
   result <- liftIO $ Map.lookup ident <$> Ref.readIORef (scope ctx)
@@ -59,7 +59,7 @@ lookupScope ident = do
     tell [Error.UnboundVar ident]
   return result
 
-lookupType :: ByteString -> ContextM (Maybe TypeDefinition)
+lookupType :: Text -> ContextM (Maybe TypeDefinition)
 lookupType typename = do
   ctx <- ask
   result <- liftIO $ Map.lookup typename <$> Ref.readIORef (types ctx)
@@ -80,12 +80,12 @@ freshSkolem = do
   ctx <- ask
   modifyIORefM (nextSkolem ctx) incr
 
-registerType :: ByteString -> TypeDefinition -> ContextM ()
+registerType :: Text -> TypeDefinition -> ContextM ()
 registerType typename typedef = do
   ctx <- ask
   liftIO $ Ref.modifyIORef' (types ctx) $ Map.insert typename typedef
 
-registerScope :: ByteString -> Type -> ContextM ()
+registerScope :: Text -> Type -> ContextM ()
 registerScope name ty = do
   ctx <- ask
   liftIO $ Ref.modifyIORef' (scope ctx) $ Map.insert name ty

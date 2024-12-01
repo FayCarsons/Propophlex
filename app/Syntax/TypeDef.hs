@@ -1,6 +1,6 @@
 module Syntax.TypeDef (TypeDefinition (..), ADT (..)) where
 
-import Data.ByteString.Lazy.Char8 (ByteString)
+import Data.Text (Text)
 import Syntax.TypeRef (TypeRef)
 
 data ADT
@@ -10,9 +10,9 @@ data ADT
 
 data TypeDefinition
   = TypeDefinition
-  { name :: ByteString
+  { name :: Text
   , kind :: ADT
   , parameters :: Maybe [TypeRef]
-  , body :: [(ByteString, TypeRef)]
+  , body :: [(Text, TypeRef)]
   }
   deriving (Eq, Show)

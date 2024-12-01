@@ -1,6 +1,7 @@
-module Type.Type (Type (..), Primitive (..), int, uint, float, char, string, bool, lambda, tuple, array, unit) where
+module Type.Type (Type (..), Primitive (..), int, uint, float, char, string, bool, lambda, tuple, array, unit, toText) where
 
-import Data.ByteString.Lazy.Char8 (ByteString)
+import Data.Text (Text)
+import qualified Data.Text as Text
 
 data Primitive
   = Int
@@ -18,12 +19,12 @@ data Primitive
 data Type
   = Unsolved
   | Primitive Primitive
-  | Defined ByteString
+  | Defined Text
   | TypeApplication Type [Type]
   | Skolem Int -- A skolem
   | TypeVar Int -- Always bound by `forall`
   | UnificationVar Int -- Placeholders that stand for as of yet unknown concrete types
-  | TypeError ByteString
+  | TypeError Text
   deriving (Eq, Show)
 
 int :: Type
@@ -55,3 +56,6 @@ array n t = Primitive $ Array n t
 
 unit :: Type
 unit = Primitive Unit
+
+toText :: Type -> Text
+toText = Text.show

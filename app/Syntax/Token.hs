@@ -1,6 +1,6 @@
 module Syntax.Token (Token (..)) where
 
-import Data.ByteString.Lazy.Char8 (ByteString)
+import Data.Text (Text)
 import Syntax.Infix (InfixOp)
 
 data Token
@@ -28,10 +28,10 @@ data Token
     TInt Int
   | TFloat Double
   | TChar Char
-  | TString ByteString
+  | TString Text
   | TBinop InfixOp
-  | Identifier ByteString
-  | ConstIdent ByteString
+  | Identifier Text
+  | ConstIdent Text
   | -- keywords
     TYPE
   | VIEW

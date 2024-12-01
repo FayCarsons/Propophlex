@@ -1,12 +1,12 @@
 module Main where
 
-import Data.ByteString.Lazy.Char8 (ByteString)
-import qualified Data.ByteString.Lazy.Char8 as BS
+import Data.Text (Text)
+import qualified Data.Text.IO as Text
 import qualified Syntax.Lexer as Lexer
 import Syntax.Parser (propophlex)
 import Text.Pretty.Simple (pPrint)
 
-getTokens :: ByteString -> IO ()
+getTokens :: Text -> IO ()
 getTokens input = case Lexer.scanMany input of
   Left e ->
     putStrLn "Failure: "
@@ -15,7 +15,7 @@ getTokens input = case Lexer.scanMany input of
     putStrLn "Success!\n"
     pPrint $ Lexer.unwrapTokens tokens
 
-getAST :: ByteString -> IO ()
+getAST :: Text -> IO ()
 getAST input = case Lexer.runAlex input propophlex of
   Left e ->
     putStrLn "Failure: "
@@ -26,5 +26,5 @@ getAST input = case Lexer.runAlex input propophlex of
 
 main :: IO ()
 main =
-  BS.readFile "app/phlib/main.phlex"
+  Text.readFile "app/phlib/main.phlex"
     >>= getAST

@@ -42,6 +42,7 @@ module Syntax.Ast (
   fieldAccess,
   withType,
   typeOf,
+  isUnsolved,
   Const (..),
   Var (..),
   Identifier (..),
@@ -50,28 +51,28 @@ module Syntax.Ast (
 ) where
 
 import Data.Bifunctor (Bifunctor (first))
-import Data.ByteString.Lazy.Char8 (ByteString)
-import qualified Data.ByteString.Lazy.Char8 as BS
+import Data.Text (Text)
+import qualified Data.Text as Text
 import Syntax.Infix (InfixOp)
 import Syntax.TypeDef (ADT (..), TypeDefinition (..))
 import Syntax.TypeRef (TypeRef (..))
 import Type.Type (Type (..))
 import qualified Type.Type as Type
 
-newtype Identifier = Identifier ByteString
+newtype Identifier = Identifier Text
   deriving (Eq, Show)
 
-newtype Var = Var ByteString
+newtype Var = Var Text
   deriving (Eq, Show)
 
-newtype Const = Const ByteString
+newtype Const = Const Text
   deriving (Eq, Show)
 
 data Literal annotation
   = LInt Int
   | LFloat Double
   | LChar Char
-  | LString ByteString
+  | LString Text
   | LBool Bool
   | LUnit
   | LRecord [(Identifier, Ast annotation)]
@@ -82,12 +83,12 @@ data Literal annotation
 unitLiteral :: Literal Type
 unitLiteral = LUnit
 
-recordLiteral :: [(ByteString, Ast Type)] -> Literal Type
+recordLiteral :: [(Text, Ast Type)] -> Literal Type
 recordLiteral =
   LRecord
     . map (first Identifier)
 
-sumLiteral :: ByteString -> [Ast Type] -> Literal Type
+sumLiteral :: Text -> [Ast Type] -> Literal Type
 sumLiteral variant = LSum (Const variant)
 
 tuple :: [Literal Type] -> Literal Type
@@ -102,7 +103,7 @@ float = LFloat
 char :: Char -> Literal Type
 char = LChar
 
-string :: ByteString -> Literal Type
+string :: Text -> Literal Type
 string = LString
 
 literal :: Literal Type -> Ast Type
@@ -114,7 +115,7 @@ literal = \case
   LUnit -> Literal Type.unit LUnit
   other -> Literal Type.Unsolved other
 
-typeVar :: ByteString -> TypeRef
+typeVar :: Text -> TypeRef
 typeVar = VarT
 
 typeSigError label unexpected = error $ label ++ ": first type must be a concrete type. Got: " ++ show unexpected
@@ -125,13 +126,13 @@ typeApplication types = case types of
   ts@((ApplicationT t _) : _) -> ApplicationT t ts
   unexpected -> typeSigError "typeApplication" unexpected
 
-typeConcrete :: ByteString -> TypeRef
+typeConcrete :: Text -> TypeRef
 typeConcrete = ConcreteT
 
 fnType :: [TypeRef] -> TypeRef
 fnType = FnT
 
-anonymousRecordT :: [(ByteString, TypeRef)] -> TypeRef
+anonymousRecordT :: [(Text, TypeRef)] -> TypeRef
 anonymousRecordT = AnonymousRecord
 
 binaryInfix :: InfixOp -> Ast Type -> Ast Type -> Ast Type
@@ -147,28 +148,28 @@ data Arg
   | Erased
   deriving (Eq, Show)
 
-untypedArg :: ByteString -> Arg
+untypedArg :: Text -> Arg
 untypedArg s = Arg $ Var s
 
-typedArg :: ByteString -> TypeRef -> Arg
+typedArg :: Text -> TypeRef -> Arg
 typedArg = Typed . Var
 
-sumLiteralArg :: ByteString -> [ByteString] -> Arg
+sumLiteralArg :: Text -> [Text] -> Arg
 sumLiteralArg variant fields = SumLiteral (Const variant) (map Identifier fields)
 
 erasedArg :: Arg
 erasedArg = Erased
 
-recordTypeDeclaration :: [TypeRef] -> [(ByteString, TypeRef)] -> Ast Type
+recordTypeDeclaration :: [TypeRef] -> [(Text, TypeRef)] -> Ast Type
 recordTypeDeclaration params fields = TypeDef $ case params of
   [ConcreteT cons] -> TypeDefinition cons Record Nothing fields
   ConcreteT cons : typeParams -> TypeDefinition cons Record (Just $ reverse typeParams) fields
   unexpected -> typeSigError "recordTypeDeclaration" unexpected
 
-fieldAccess :: ByteString -> ByteString -> Ast Type
+fieldAccess :: Text -> Text -> Ast Type
 fieldAccess v field = FieldAccess Unsolved (Identifier v) (Identifier field)
 
-sumTypeDeclaration :: [TypeRef] -> [(ByteString, TypeRef)] -> Ast Type
+sumTypeDeclaration :: [TypeRef] -> [(Text, TypeRef)] -> Ast Type
 sumTypeDeclaration params variants = TypeDef $ case params of
   [ConcreteT cons] -> TypeDefinition cons Sum Nothing variants
   ConcreteT cons : typeParams -> TypeDefinition cons Sum (Just $ reverse typeParams) variants
@@ -193,7 +194,7 @@ data Ast annotation
   deriving (Eq, Show)
 
 withType :: Type -> Ast Type -> Ast Type
-withType t expr = case expr of
+withType t = \case
   Literal _ lit -> Literal t lit
   Erase _ exprs -> Erase t exprs
   Variable _ ident -> Variable t ident
@@ -202,22 +203,30 @@ withType t expr = case expr of
   TypeDef td -> TypeDef td
   Let _ name sig exprs -> Let t name sig exprs
   Fn _ args body -> Fn t args body
-  Constant _ name sig expr -> Constant t name sig expr
+  Constant _ name sig body -> Constant t name sig body
   Call _ app -> Call t app
-  Match _ expr arms -> Match t expr arms
+  Match _ body arms -> Match t body arms
 
 typeOf :: Ast Type -> Type
-typeOf (Literal t _) = t
-typeOf (Erase t _) = t
-typeOf (Variable t _) = t
-typeOf (Infix t _) = t
-typeOf (FieldAccess t _ _) = t
-typeOf (TypeDef (TypeDefinition{name})) = Defined name
-typeOf (Let t _ _ _) = t
-typeOf (Fn t _ _) = t
-typeOf (Constant t _ _ _) = t
-typeOf (Call t _) = t
-typeOf (Match t _ _) = t
+typeOf = \case
+  Literal t _ -> t
+  Erase t _ -> t
+  Variable t _ -> t
+  Infix t _ -> t
+  FieldAccess t _ _ -> t
+  TypeDef (TypeDefinition{name}) -> Defined name
+  Let t _ _ _ -> t
+  Fn t _ _ -> t
+  Constant t _ _ _ -> t
+  Call t _ -> t
+  Match t _ _ -> t
+
+isUnsolved :: Ast Type -> Bool
+isUnsolved =
+  \case
+    Unsolved -> True
+    _ -> False
+    . typeOf
 
 ifThen :: Ast Type -> Ast Type -> Ast Type
 ifThen p t = Match Unsolved p [(LitP $ LBool True, t), (LitP $ LBool False, Literal (Primitive Type.Unit) LUnit)]
@@ -237,7 +246,7 @@ match = Match Unsolved
 matchLiteral :: Literal Type -> Pattern Type
 matchLiteral = LitP
 
-matchBinding :: ByteString -> Pattern Type
+matchBinding :: Text -> Pattern Type
 matchBinding = BindP Unsolved . Var
 
 matchErase :: Pattern Type
@@ -253,7 +262,7 @@ lambdaMatch :: [(Pattern Type, Ast Type)] -> Ast Type
 lambdaMatch arms =
   Fn Unsolved [untypedArg x] [Match Unsolved (variable x) arms]
  where
-  x = BS.pack "x"
+  x = Text.pack "x"
 
 erase :: Ast Type -> Ast Type
 erase = Erase Unsolved
@@ -261,11 +270,11 @@ erase = Erase Unsolved
 unitT :: TypeRef
 unitT = UnitT
 
-variable :: ByteString -> Ast Type
+variable :: Text -> Ast Type
 variable = Variable Unsolved . Identifier
 
-letDeclaration :: ByteString -> Maybe TypeRef -> [Ast Type] -> Ast Type
+letDeclaration :: Text -> Maybe TypeRef -> [Ast Type] -> Ast Type
 letDeclaration = Let Unsolved . Identifier
 
-constDeclaration :: ByteString -> TypeRef -> Ast Type -> Ast Type
+constDeclaration :: Text -> TypeRef -> Ast Type -> Ast Type
 constDeclaration = Constant Unsolved . Const

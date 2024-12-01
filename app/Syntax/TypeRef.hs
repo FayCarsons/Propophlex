@@ -1,12 +1,12 @@
 module Syntax.TypeRef (TypeRef (..)) where
 
-import Data.ByteString.Lazy.Char8 (ByteString)
+import Data.Text (Text)
 
 data TypeRef
-  = ConcreteT ByteString
-  | ApplicationT ByteString [TypeRef]
+  = ConcreteT Text
+  | ApplicationT Text [TypeRef]
   | FnT [TypeRef]
-  | VarT ByteString
-  | AnonymousRecord [(ByteString, TypeRef)]
+  | VarT Text
+  | AnonymousRecord [(Text, TypeRef)]
   | UnitT
   deriving (Eq, Show)
