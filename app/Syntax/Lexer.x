@@ -72,6 +72,7 @@ tokens :-
   "view" { to T.VIEW }
   "let" { to T.LET }
   "const" { to T.CONST }
+  "extern" { to T.EXTERN }
   "if" { to T.IF }
   "then" { to T.THEN }
   "else" { to T.ELSE }

@@ -45,6 +45,7 @@ import qualified Syntax.Ast as Ast
   view { Located T.VIEW _ }
   let { Located T.LET _ }
   const { Located T.CONST _ }
+  extern { Located T.EXTERN _ }
   if { Located T.IF _ }
   then { Located T.THEN _ }
   else { Located T.ELSE _ }
@@ -64,8 +65,10 @@ TopLevels : TopLevel { [$1] }
 
 TopLevel : TypeDeclaration { $1 }
          | ConstDeclaration { $1 }
+         | ExternDeclaration { $1 }
 
 ConstDeclaration : const identifier ':' Signature '=' Expression { Ast.constDeclaration $2 $4 $6 } 
+ExternDeclaration : extern identifier ':' Signature '=' string { Ast.externDeclaration $2 $4 $6 }
 
 Expressions : Expression { [$1] }
             | Expressions Expression { $2 : $1 }

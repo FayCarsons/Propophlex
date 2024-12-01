@@ -37,6 +37,7 @@ data Token
   | VIEW
   | LET
   | CONST
+  | EXTERN
   | IF
   | THEN
   | ELSE

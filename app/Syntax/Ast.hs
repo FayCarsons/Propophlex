@@ -25,6 +25,7 @@ module Syntax.Ast (
   lambdaMatch,
   letDeclaration,
   constDeclaration,
+  externDeclaration,
   ifThen,
   ifThenElse,
   match,
@@ -189,6 +190,7 @@ data Ast annotation
   | Let annotation Identifier (Maybe TypeRef) [Ast annotation]
   | Fn annotation [Arg] [Ast annotation]
   | Constant annotation Const TypeRef (Ast annotation)
+  | Extern annotation Identifier TypeRef Text
   | Call annotation (Application annotation)
   | Match annotation (Ast annotation) [(Pattern annotation, Ast annotation)]
   deriving (Eq, Show)
@@ -204,6 +206,7 @@ withType t = \case
   Let _ name sig exprs -> Let t name sig exprs
   Fn _ args body -> Fn t args body
   Constant _ name sig body -> Constant t name sig body
+  Extern _ name sig symbol -> Extern t name sig symbol
   Call _ app -> Call t app
   Match _ body arms -> Match t body arms
 
@@ -218,6 +221,7 @@ typeOf = \case
   Let t _ _ _ -> t
   Fn t _ _ -> t
   Constant t _ _ _ -> t
+  Extern t _ _ _ -> t
   Call t _ -> t
   Match t _ _ -> t
 
@@ -278,3 +282,6 @@ letDeclaration = Let Unsolved . Identifier
 
 constDeclaration :: Text -> TypeRef -> Ast Type -> Ast Type
 constDeclaration = Constant Unsolved . Const
+
+externDeclaration :: Text -> TypeRef -> Text -> Ast Type
+externDeclaration = Extern Unsolved . Identifier
