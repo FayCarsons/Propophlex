@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Syntax.Ast (
   Ast (..),
@@ -39,9 +40,13 @@ module Syntax.Ast (
   recordTypeDeclaration,
   anonymousRecordT,
   fieldAccess,
+  withType,
+  typeOf,
   Const (..),
   Var (..),
   Identifier (..),
+  Literal (..),
+  Application (..),
 ) where
 
 import Data.Bifunctor (Bifunctor (first))
@@ -116,8 +121,8 @@ typeSigError label unexpected = error $ label ++ ": first type must be a concret
 
 typeApplication :: [TypeRef] -> TypeRef
 typeApplication types = case types of
-  ConcreteT constructor : args -> ApplicationT $ ConcreteT constructor : reverse args
-  ts@((ApplicationT _) : _) -> ApplicationT ts
+  ConcreteT constructor : args -> ApplicationT constructor $ reverse args
+  ts@((ApplicationT t _) : _) -> ApplicationT t ts
   unexpected -> typeSigError "typeApplication" unexpected
 
 typeConcrete :: ByteString -> TypeRef
@@ -130,10 +135,10 @@ anonymousRecordT :: [(ByteString, TypeRef)] -> TypeRef
 anonymousRecordT = AnonymousRecord
 
 binaryInfix :: InfixOp -> Ast Type -> Ast Type -> Ast Type
-binaryInfix op l r = Call Unsolved (FunctionApplication (Call Unsolved (FunctionApplication (Infix Unsolved op) l)) r)
+binaryInfix op l r = Call Unsolved (Application (Call Unsolved (Application (Infix Unsolved op) l)) r)
 
 unary :: InfixOp -> Ast Type -> Ast Type
-unary op l = Call Unsolved (FunctionApplication (Infix Unsolved op) l)
+unary op l = Call Unsolved (Application (Infix Unsolved op) l)
 
 data Arg
   = Arg Var
@@ -155,7 +160,7 @@ erasedArg :: Arg
 erasedArg = Erased
 
 recordTypeDeclaration :: [TypeRef] -> [(ByteString, TypeRef)] -> Ast Type
-recordTypeDeclaration params fields = TypeDef Unsolved $ case params of
+recordTypeDeclaration params fields = TypeDef $ case params of
   [ConcreteT cons] -> TypeDefinition cons Record Nothing fields
   ConcreteT cons : typeParams -> TypeDefinition cons Record (Just $ reverse typeParams) fields
   unexpected -> typeSigError "recordTypeDeclaration" unexpected
@@ -164,28 +169,55 @@ fieldAccess :: ByteString -> ByteString -> Ast Type
 fieldAccess v field = FieldAccess Unsolved (Identifier v) (Identifier field)
 
 sumTypeDeclaration :: [TypeRef] -> [(ByteString, TypeRef)] -> Ast Type
-sumTypeDeclaration params variants = TypeDef Unsolved $ case params of
+sumTypeDeclaration params variants = TypeDef $ case params of
   [ConcreteT cons] -> TypeDefinition cons Sum Nothing variants
   ConcreteT cons : typeParams -> TypeDefinition cons Sum (Just $ reverse typeParams) variants
   unexpected -> typeSigError "sumTypeDeclaration" unexpected
 
-data FunctionApplication annotation
-  = FunctionApplication (Ast annotation) (Ast annotation)
+data Application annotation
+  = Application (Ast annotation) (Ast annotation)
   deriving (Eq, Show)
 
 data Ast annotation
   = Literal annotation (Literal annotation)
-  | Erase annotation [Ast annotation]
+  | Erase annotation (Ast annotation)
   | Variable annotation Identifier
   | Infix annotation InfixOp
   | FieldAccess annotation Identifier Identifier
-  | TypeDef annotation TypeDefinition
+  | TypeDef TypeDefinition
   | Let annotation Identifier (Maybe TypeRef) [Ast annotation]
   | Fn annotation [Arg] [Ast annotation]
   | Constant annotation Const TypeRef (Ast annotation)
-  | Call annotation (FunctionApplication annotation)
+  | Call annotation (Application annotation)
   | Match annotation (Ast annotation) [(Pattern annotation, Ast annotation)]
   deriving (Eq, Show)
+
+withType :: Type -> Ast Type -> Ast Type
+withType t expr = case expr of
+  Literal _ lit -> Literal t lit
+  Erase _ exprs -> Erase t exprs
+  Variable _ ident -> Variable t ident
+  Infix _ op -> Infix t op
+  FieldAccess _ ident field -> FieldAccess t ident field
+  TypeDef td -> TypeDef td
+  Let _ name sig exprs -> Let t name sig exprs
+  Fn _ args body -> Fn t args body
+  Constant _ name sig expr -> Constant t name sig expr
+  Call _ app -> Call t app
+  Match _ expr arms -> Match t expr arms
+
+typeOf :: Ast Type -> Type
+typeOf (Literal t _) = t
+typeOf (Erase t _) = t
+typeOf (Variable t _) = t
+typeOf (Infix t _) = t
+typeOf (FieldAccess t _ _) = t
+typeOf (TypeDef (TypeDefinition{name})) = Defined name
+typeOf (Let t _ _ _) = t
+typeOf (Fn t _ _) = t
+typeOf (Constant t _ _ _) = t
+typeOf (Call t _) = t
+typeOf (Match t _ _) = t
 
 ifThen :: Ast Type -> Ast Type -> Ast Type
 ifThen p t = Match Unsolved p [(LitP $ LBool True, t), (LitP $ LBool False, Literal (Primitive Type.Unit) LUnit)]
@@ -212,7 +244,7 @@ matchErase :: Pattern Type
 matchErase = EraseP Unsolved
 
 call :: Ast Type -> Ast Type -> Ast Type
-call f xs = Call Unsolved $ FunctionApplication f xs
+call f xs = Call Unsolved $ Application f xs
 
 lambda :: [Arg] -> [Ast Type] -> Ast Type
 lambda = Fn Unsolved
@@ -223,7 +255,7 @@ lambdaMatch arms =
  where
   x = BS.pack "x"
 
-erase :: [Ast Type] -> Ast Type
+erase :: Ast Type -> Ast Type
 erase = Erase Unsolved
 
 unitT :: TypeRef

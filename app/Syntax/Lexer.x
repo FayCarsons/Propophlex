@@ -120,6 +120,7 @@ alexEOF = do
 data Location
   = Location {start :: AlexPosn, stop :: AlexPosn}
   deriving (Eq, Show, Ord)
+
 data Located a
   = Located
   { inner :: !a

@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Type.Context (Context, ContextM, new, lookupScope, freshUVar, freshSkolem, registerType, registerScope, withNewScope) where
+module Type.Context (Context (..), ContextM, new, lookupScope, lookupType, freshUVar, freshSkolem, registerType, registerScope, withNewScope) where
 
 import Control.Monad.IO.Class
 import Control.Monad.Reader

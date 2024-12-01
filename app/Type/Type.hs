@@ -19,6 +19,7 @@ data Type
   = Unsolved
   | Primitive Primitive
   | Defined ByteString
+  | TypeApplication Type [Type]
   | Skolem Int -- A skolem
   | TypeVar Int -- Always bound by `forall`
   | UnificationVar Int -- Placeholders that stand for as of yet unknown concrete types

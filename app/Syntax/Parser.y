@@ -101,7 +101,7 @@ SimpleExpr : identifier { Ast.variable $1 }
 
 LetBinding : let identifier ':' Signature '=' Expressions ';' { Ast.letDeclaration $2 (Just $4) $ reverse $6 }
            | let identifier '=' Expressions ';' { Ast.letDeclaration $2 Nothing $4 }
-           | let '_' '=' Expressions ';' { Ast.erase $4 }
+           | let '_' '=' Expression ';' { Ast.erase $4 }
 
 Arithmetic : Expression binop Expression { Ast.binaryInfix $2 $1 $3 }
            | binop Expression { Ast.unary $1 $2 }

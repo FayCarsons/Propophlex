@@ -4,7 +4,7 @@ import Data.ByteString.Lazy.Char8 (ByteString)
 
 data TypeRef
   = ConcreteT ByteString
-  | ApplicationT [TypeRef]
+  | ApplicationT ByteString [TypeRef]
   | FnT [TypeRef]
   | VarT ByteString
   | AnonymousRecord [(ByteString, TypeRef)]
