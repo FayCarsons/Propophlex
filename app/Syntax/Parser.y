@@ -103,7 +103,8 @@ SimpleExpr : identifier { Ast.variable $1 }
 
 LetBinding : let identifier ':' Signature '=' Expressions ';' { Ast.letDeclaration $2 (Just $4) $ reverse $6 }
            | let identifier '=' Expressions ';' { Ast.letDeclaration $2 Nothing $4 }
-           | let '_' '=' Expression ';' { Ast.erase $4 }
+           | let '_' '=' Expression ';' { Ast.erase Nothing $4 }
+           | let '_' ':' Signature '=' Expression { Ast.erase (Just $4) $6 }
 
 Arithmetic : Expression binop Expression { Ast.binaryInfix $2 $1 $3 }
            | binop Expression { Ast.unary $1 $2 }
@@ -148,8 +149,8 @@ Literal : int { Ast.int $1 }
         | RecordLiteral { $1 }
         | SumLiteral { $1 }
 
-TupleFields : Literal { [$1] }
-            | TupleFields ',' Literal { $3 : $1 }
+TupleFields : Expression { [$1] }
+            | TupleFields ',' Expression { $3 : $1 }
  
 SumField : constIdent TypeRef { ($1, $2) }
          | constIdent '{' RecordFields '}' { ($1, Ast.anonymousRecordT $ reverse $3) }

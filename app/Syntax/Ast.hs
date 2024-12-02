@@ -78,7 +78,7 @@ data Literal annotation
   | LUnit
   | LRecord [(Identifier, Ast annotation)]
   | LSum Const [Ast annotation]
-  | LTuple [Literal annotation]
+  | LTuple [Ast annotation]
   deriving (Eq, Show)
 
 unitLiteral :: Literal Type
@@ -92,7 +92,7 @@ recordLiteral =
 sumLiteral :: Text -> [Ast Type] -> Literal Type
 sumLiteral variant = LSum (Const variant)
 
-tuple :: [Literal Type] -> Literal Type
+tuple :: [Ast Type] -> Literal Type
 tuple = LTuple
 
 int :: Int -> Literal Type
@@ -182,7 +182,7 @@ data Application annotation
 
 data Ast annotation
   = Literal annotation (Literal annotation)
-  | Erase annotation (Ast annotation)
+  | Erase annotation (Maybe TypeRef) (Ast annotation)
   | Variable annotation Identifier
   | Infix annotation InfixOp
   | FieldAccess annotation Identifier Identifier
@@ -198,7 +198,7 @@ data Ast annotation
 withType :: Type -> Ast Type -> Ast Type
 withType t = \case
   Literal _ lit -> Literal t lit
-  Erase _ exprs -> Erase t exprs
+  Erase _ sig expr -> Erase t sig expr
   Variable _ ident -> Variable t ident
   Infix _ op -> Infix t op
   FieldAccess _ ident field -> FieldAccess t ident field
@@ -213,7 +213,7 @@ withType t = \case
 typeOf :: Ast Type -> Type
 typeOf = \case
   Literal t _ -> t
-  Erase t _ -> t
+  Erase t _ _ -> t
   Variable t _ -> t
   Infix t _ -> t
   FieldAccess t _ _ -> t
@@ -268,7 +268,7 @@ lambdaMatch arms =
  where
   x = Text.pack "x"
 
-erase :: Ast Type -> Ast Type
+erase :: Maybe TypeRef -> Ast Type -> Ast Type
 erase = Erase Unsolved
 
 unitT :: TypeRef

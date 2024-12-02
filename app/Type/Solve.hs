@@ -99,7 +99,8 @@ infer :: Ast Type -> ContextM (Ast Type)
 infer node = case node of
   -- NOTE: Literal should always be typed from AST construction
   Literal _ _ -> return node
-  Erase _ erasedBody -> infer erasedBody
+  -- NOTE: Erase should probably use its signature lol
+  Erase _ _ erasedBody -> infer erasedBody
   Variable _ (Ast.Identifier varName) -> do
     scope <- asks Ctx.scope >>= liftIO . Ref.readIORef
     case Map.lookup varName scope of
