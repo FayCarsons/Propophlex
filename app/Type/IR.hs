@@ -11,6 +11,7 @@ import Syntax.TypeRef (TypeRef)
 import Type.Context (ContextM)
 import qualified Type.Context as Ctx
 
+{-
 data Literal a
   = Int Int
   | Float Double
@@ -54,3 +55,4 @@ refine =
     Ast.Constant t (Ast.Const name) sig body -> Expr t . Def name (Just sig) . (: []) <$> refine body
     Ast.Extern t (Ast.Identifier name) sig symbol -> undefined
     Ast.Call t f x -> undefined
+ - -}

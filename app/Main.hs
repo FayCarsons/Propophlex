@@ -5,6 +5,7 @@ import qualified Data.Text.IO as Text
 import qualified Syntax.Lexer as Lexer
 import Syntax.Parser (propophlex)
 import Text.Pretty.Simple (pPrint)
+import Type.Context (new, runT)
 
 getTokens :: Text -> IO ()
 getTokens input = case Lexer.scanMany input of
@@ -16,13 +17,15 @@ getTokens input = case Lexer.scanMany input of
     pPrint $ Lexer.unwrapTokens tokens
 
 getAST :: Text -> IO ()
-getAST input = case Lexer.runAlex input propophlex of
-  Left e ->
-    putStrLn "Failure: "
-      *> pPrint e
-  Right ast ->
-    putStrLn "Success!"
-      *> pPrint ast
+getAST input = do
+  context <- new
+  case Lexer.runAlex input (runT context propophlex) of
+    Left e ->
+      putStrLn "Failure: "
+        *> pPrint e
+    Right ast ->
+      putStrLn "Success!"
+        *> pPrint ast
 
 main :: IO ()
 main =

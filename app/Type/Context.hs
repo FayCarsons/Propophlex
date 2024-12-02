@@ -1,8 +1,9 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Type.Context (Context (..), ContextM, new, lookupScope, lookupType, freshUVar, freshSkolem, registerType, registerScope, withNewScope) where
+module Type.Context (Context (..), ContextM, ContextT (..), new, lookupScope, lookupType, freshUVar, freshSkolem, registerType, registerScope, withNewScope, runT) where
 
 import Control.Monad.IO.Class
 import Control.Monad.Reader
@@ -13,6 +14,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (isNothing)
 import Data.Text (Text)
+import Syntax.Lexer (Alex)
 import Syntax.TypeDef (TypeDefinition)
 import Type.Error (Error)
 import qualified Type.Error as Error
@@ -37,8 +39,21 @@ newtype ContextM a
     , MonadWriter [Error]
     )
 
+newtype ContextT a
+  = ContextT (ReaderT Context (WriterT [Error] Alex) a)
+  deriving
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadReader Context
+    , MonadWriter [Error]
+    )
+
 runContext :: Context -> ContextM a -> IO (a, [Error])
 runContext ctx m = runWriterT $ flip runReaderT ctx $ runContextM m
+
+runT :: Context -> ContextT a -> Alex (a, [Error])
+runT ctx (ContextT m) = runWriterT (runReaderT m ctx)
 
 new :: IO Context
 new = do

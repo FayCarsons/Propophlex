@@ -5,17 +5,21 @@
 module Syntax.Parser(propophlex) where
 
 import Data.Monoid (First(..))
+import Type.Context (ContextT(..))
 import qualified Data.Text as Text
 import qualified Syntax.Token as T
 import qualified Syntax.Lexer as Lexer 
-import Syntax.Lexer (Located(..))
+import Syntax.Lexer (Located(..), AlexInput, alexMonadScan, Alex)
+import Control.Monad.Reader
+import Control.Monad.Writer.Strict
 import qualified Syntax.Ast as Ast
+import Type.Error (parserError)
 }
 
 %name propophlex
 %tokentype { Located T.Token }
 %error { parseError }
-%monad { Lexer.Alex } { >>= } { pure }
+%monad { ContextT } { >>= } { pure }
 %lexer { lexer } { Located T.EOI _ }
 %token 
   '(' { Located T.LEFT_PAREN _ }
@@ -190,9 +194,9 @@ TypeDeclaration : type constIdent '=' SumFields { Ast.sumTypeDeclaration [Ast.ty
 slice :: Int -> Int -> [a] -> [a]
 slice offset len = take len . drop offset
 
-parseError :: Located T.Token -> Lexer.Alex a
+parseError :: Located T.Token -> ContextT a
 parseError Located{inner, loc} = do 
-  (Lexer.AlexPn offset line column, prevChar, _, input) <- Lexer.alexGetInput
+  (Lexer.AlexPn offset line column, prevChar, _, input) <- liftAlex Lexer.alexGetInput
   let token = inner
       contextLines = 2
       allLines = Text.splitOn "\n" input
@@ -212,8 +216,14 @@ parseError Located{inner, loc} = do
         , "Context:" 
         ] ++ map formatLine surrounding
 
-  Lexer.alexError $ Text.unpack errorMsg
+  tell [ parserError line column errorMsg ]
+  liftAlex $ Lexer.alexError $ Text.unpack errorMsg
 
-lexer :: (Located T.Token -> Lexer.Alex a) -> Lexer.Alex a
-lexer = (=<< Lexer.alexMonadScan)
+liftAlex :: Alex a -> ContextT a
+liftAlex m = ContextT $ ReaderT $ \_ -> WriterT $ fmap (\a -> (a, [])) m
+
+lexer :: (Located T.Token -> ContextT a) -> ContextT a
+lexer cont = do
+  token <- liftAlex alexMonadScan
+  cont token
 }

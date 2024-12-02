@@ -12,6 +12,8 @@
 
 module Syntax.Lexer(
   Alex
+  , AlexUserState
+  , AlexInput
   , AlexPosn(..)
   , alexGetInput
   , alexError
