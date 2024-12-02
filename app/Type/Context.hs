@@ -3,7 +3,21 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Type.Context (Context (..), ContextM, ContextT (..), new, lookupScope, lookupType, freshUVar, freshSkolem, registerType, registerScope, withNewScope, runT) where
+module Type.Context (
+  Context (..),
+  ContextM,
+  ContextT (..),
+  new,
+  parse,
+  runContext,
+  lookupScope,
+  lookupType,
+  freshUVar,
+  freshSkolem,
+  registerType,
+  registerScope,
+  withNewScope,
+) where
 
 import Control.Monad.IO.Class
 import Control.Monad.Reader
@@ -14,7 +28,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (isNothing)
 import Data.Text (Text)
-import Syntax.Lexer (Alex)
+import Syntax.Lexer (Alex, runAlex)
 import Syntax.TypeDef (TypeDefinition)
 import Type.Error (Error)
 import qualified Type.Error as Error
@@ -52,8 +66,15 @@ newtype ContextT a
 runContext :: Context -> ContextM a -> IO (a, [Error])
 runContext ctx m = runWriterT $ flip runReaderT ctx $ runContextM m
 
-runT :: Context -> ContextT a -> Alex (a, [Error])
-runT ctx (ContextT m) = runWriterT (runReaderT m ctx)
+-- NOTE: damn this shits ugly as hell !
+parse :: Text -> ContextT a -> ContextM (Either String a)
+parse input (ContextT m) =
+  ContextM $
+    ReaderT $
+      \ctx -> WriterT $ do
+        case runAlex input (runWriterT (runReaderT m ctx)) of
+          Left err -> return (Left err, [])
+          Right (a, err) -> return (Right a, err)
 
 new :: IO Context
 new = do

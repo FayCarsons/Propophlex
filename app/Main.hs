@@ -1,11 +1,14 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Main where
 
+import Control.Monad.Cont (MonadIO (liftIO))
 import Data.Text (Text)
 import qualified Data.Text.IO as Text
 import qualified Syntax.Lexer as Lexer
 import Syntax.Parser (propophlex)
 import Text.Pretty.Simple (pPrint)
-import Type.Context (new, runT)
+import Type.Context (ContextM, new, parse, runContext)
 
 getTokens :: Text -> IO ()
 getTokens input = case Lexer.scanMany input of
@@ -16,18 +19,22 @@ getTokens input = case Lexer.scanMany input of
     putStrLn "Success!\n"
     pPrint $ Lexer.unwrapTokens tokens
 
-getAST :: Text -> IO ()
-getAST input = do
-  context <- new
-  case Lexer.runAlex input (runT context propophlex) of
+runParser :: Text -> ContextM ()
+runParser input = do
+  parse input propophlex >>= \case
     Left e ->
-      putStrLn "Failure: "
-        *> pPrint e
+      liftIO $
+        putStrLn "Failure: "
+          *> pPrint e
     Right ast ->
-      putStrLn "Success!"
-        *> pPrint ast
+      liftIO $
+        putStrLn "Success!"
+          *> pPrint ast
 
 main :: IO ()
-main =
-  Text.readFile "app/phlib/main.phlex"
-    >>= getAST
+main = do
+  ctx <- new
+  input <- Text.readFile "app/phlib/main.phlex"
+  (ast, err) <- runContext ctx (runParser input)
+  print err
+  print ast
