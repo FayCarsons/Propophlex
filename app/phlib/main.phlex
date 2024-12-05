@@ -1,3 +1,6 @@
-type Bool = True | False
-
 extern putc: Char -> () = "putc"
+
+const println : {n: Const} n String -> () = 
+  fn s -> 
+    unsafe_get_string_ptr s |> unsafe_print;
+    putc '\n'

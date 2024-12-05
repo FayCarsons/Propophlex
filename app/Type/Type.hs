@@ -21,8 +21,8 @@ data Type
   | Primitive Primitive
   | Defined Text
   | TypeApplication Type [Type]
-  | Skolem Int -- A skolem
-  | TypeVar Int -- Always bound by `forall`
+  | Skolem Int -- A skolem , a hole for monomorphization
+  | TypeVar Int -- Always bound by `forall` - this should maybe just be an AST node?
   | UnificationVar Int -- Placeholders that stand for as of yet unknown concrete types
   | TypeError Text
   deriving (Eq, Show)
