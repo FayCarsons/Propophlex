@@ -1,12 +1,15 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import Control.Monad.Cont (MonadIO (liftIO))
 import Data.Text (Text)
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import qualified Syntax.Lexer as Lexer
 import Syntax.Parser (propophlex)
+import System.Environment (getArgs)
 import Text.Pretty.Simple (pPrint)
 import Type.Context (ContextM, new, parse, runContext)
 
@@ -33,8 +36,14 @@ runParser input = do
 
 main :: IO ()
 main = do
-  ctx <- new
   input <- Text.readFile "app/phlib/main.phlex"
-  (ast, err) <- runContext ctx (runParser input)
-  print err
-  print ast
+  getArgs
+    >>= ( \case
+            ["--tokens"] -> getTokens input
+            ["-t"] -> getTokens input
+            _ -> do
+              ctx <- new
+              (ast, _) <- runContext ctx (runParser input)
+              print ast
+        )
+      . map (Text.toLower . Text.pack)

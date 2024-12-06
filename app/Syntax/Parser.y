@@ -5,6 +5,7 @@
 module Syntax.Parser(propophlex) where
 
 import Data.Monoid (First(..))
+import Syntax.TypeRef (tupleType)
 import Type.Context (ContextT(..))
 import qualified Data.Text as Text
 import qualified Syntax.Token as T
@@ -117,11 +118,15 @@ TypeArg : identifier { Ast.typeVar $1 }
         | constIdent { Ast.typeConcrete $1 }
         | '(' TypeArgs ')' { Ast.typeApplication $2 }
 
+TupleType : TypeRef { [$1] }
+          | TupleType ',' TypeRef { $3 : $1 }
+
 TypeArgs : TypeArg TypeArg { [$2, $1] }
          | TypeArgs TypeArg { $2 : $1 }
 
 TypeRef : TypeArg { $1 }
         | TypeArgs { Ast.typeApplication $1 }
+        | '(' TupleType ')' { tupleType $2 }
         | '(' ')' { Ast.unitT }
         | '(' TypeRef arrow TypeRef ')' { Ast.fnType [$2, $4] }  -- Directly construct function type
         | '(' Arrows ')' { Ast.fnType (reverse $2) }  -- Handle multi-arg functions

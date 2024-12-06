@@ -152,6 +152,6 @@ infer node = case node of
    - -}
   Fn _ args body -> undefined
   Constant _ name sig body -> undefined
-  Call _ app -> undefined
+  App _ f x -> undefined
   Match _ expr arms -> undefined
   _ -> undefined

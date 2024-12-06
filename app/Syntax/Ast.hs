@@ -48,7 +48,6 @@ module Syntax.Ast (
   Var (..),
   Identifier (..),
   Literal (..),
-  Application (..),
 ) where
 
 import Data.Bifunctor (Bifunctor (first))
@@ -137,10 +136,10 @@ anonymousRecordT :: [(Text, TypeRef)] -> TypeRef
 anonymousRecordT = AnonymousRecord
 
 binaryInfix :: InfixOp -> Ast Type -> Ast Type -> Ast Type
-binaryInfix op l r = Call Unsolved (Application (Call Unsolved (Application (Infix Unsolved op) l)) r)
+binaryInfix op l = App Unsolved (App Unsolved (Infix Unsolved op) l)
 
 unary :: InfixOp -> Ast Type -> Ast Type
-unary op l = Call Unsolved (Application (Infix Unsolved op) l)
+unary = App Unsolved . Infix Unsolved
 
 data Arg
   = Arg Var
@@ -176,10 +175,6 @@ sumTypeDeclaration params variants = TypeDef $ case params of
   ConcreteT cons : typeParams -> TypeDefinition cons Sum (Just $ reverse typeParams) variants
   unexpected -> typeSigError "sumTypeDeclaration" unexpected
 
-data Application annotation
-  = Application (Ast annotation) (Ast annotation)
-  deriving (Eq, Show)
-
 data Ast annotation
   = Literal annotation (Literal annotation)
   | Erase annotation (Maybe TypeRef) (Ast annotation)
@@ -191,7 +186,7 @@ data Ast annotation
   | Fn annotation [Arg] [Ast annotation]
   | Constant annotation Const TypeRef (Ast annotation)
   | Extern annotation Identifier TypeRef Text
-  | Call annotation (Application annotation)
+  | App annotation (Ast annotation) (Ast annotation)
   | Match annotation (Ast annotation) [(Pattern annotation, Ast annotation)]
   deriving (Eq, Show)
 
@@ -207,7 +202,7 @@ withType t = \case
   Fn _ args body -> Fn t args body
   Constant _ name sig body -> Constant t name sig body
   Extern _ name sig symbol -> Extern t name sig symbol
-  Call _ app -> Call t app
+  App _ f x -> App t f x
   Match _ body arms -> Match t body arms
 
 typeOf :: Ast Type -> Type
@@ -222,7 +217,7 @@ typeOf = \case
   Fn t _ _ -> t
   Constant t _ _ _ -> t
   Extern t _ _ _ -> t
-  Call t _ -> t
+  App t _ _ -> t
   Match t _ _ -> t
 
 isUnsolved :: Ast Type -> Bool
@@ -257,7 +252,7 @@ matchErase :: Pattern Type
 matchErase = EraseP Unsolved
 
 call :: Ast Type -> Ast Type -> Ast Type
-call f xs = Call Unsolved $ Application f xs
+call = App Unsolved
 
 lambda :: [Arg] -> [Ast Type] -> Ast Type
 lambda = Fn Unsolved

@@ -3,6 +3,7 @@
 
 module Type.IR () where
 
+import Data.Bits (Bits (xor))
 import Data.Functor ((<&>))
 import Data.Text (Text)
 import Syntax.Ast (Ast)
@@ -11,7 +12,6 @@ import Syntax.TypeRef (TypeRef)
 import Type.Context (ContextM)
 import qualified Type.Context as Ctx
 
-{-
 data Literal a
   = Int Int
   | Float Double
@@ -24,7 +24,7 @@ data Literal a
 
 data Expr annotation
   = Literal (Literal annotation)
-  | Call (Node annotation) [Node annotation]
+  | App (Node annotation) [Node annotation]
   | Def Text (Maybe TypeRef) [Node annotation]
   | Do (Maybe TypeRef) (Node annotation)
 
@@ -46,6 +46,17 @@ refineLiteral = \case
   Ast.LSum (Ast.Const variant) fields -> mapM refine fields <&> Sum variant
   Ast.LRecord fields -> Record <$> mapM (\(Ast.Identifier f, v) -> refine v <&> (f,)) fields
 
+-- App (App (App f a) b) c
+
+flattenApp :: a -> Ast.Ast a -> Ast.Ast a -> ContextM (Node a)
+flattenApp t f x = Expr t <$> go [x] f
+ where
+  go acc (Ast.App _ fn arg) = go (arg : acc) fn
+  go acc fn = do
+    fn' <- refine fn
+    xs <- mapM refine acc
+    return $ App fn' xs
+
 refine :: Ast a -> ContextM (Node a)
 refine =
   \case
@@ -54,5 +65,4 @@ refine =
     Ast.Let t (Ast.Identifier name) sig body -> Expr t . Def name sig <$> mapM refine body
     Ast.Constant t (Ast.Const name) sig body -> Expr t . Def name (Just sig) . (: []) <$> refine body
     Ast.Extern t (Ast.Identifier name) sig symbol -> undefined
-    Ast.Call t f x -> undefined
- - -}
+    Ast.App t f x -> flattenApp t f x

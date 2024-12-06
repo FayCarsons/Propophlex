@@ -26,6 +26,7 @@ module Syntax.Lexer(
 ) where
 
 import Data.Text (Text)
+import Debug.Trace (trace)
 import qualified Data.Text as Text
 import Data.Int (Int64)
 import qualified Syntax.Token as T
@@ -133,7 +134,7 @@ newLoc (start, _, _, str) len =
    in Location{start, stop}
 
 matchOperator :: AlexAction (Located T.Token)
-matchOperator inp@(_, _, _, str) len = case Map.lookup str operatorTokens of 
+matchOperator inp@(_, _, _, str) len = trace ("Got operator: " ++ Text.unpack str) $ case Map.lookup (Text.take len $ Text.strip str) operatorTokens of 
     Just binop -> to (T.TBinop binop) inp len 
     Nothing -> alexError $ "Unknown operator: " ++ Text.unpack str
 
